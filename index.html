@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <title>Roland VR-09B Controller</title>
+</head>
+
+<body>
+    <div class="container">
+        <header class="app-bar">
+            <div class="logo">
+                <img src="logo.png" alt="FreeVR09B" class="logo-img" decoding="sync" />
+            </div>
+            <div class="connection-inline">
+                <div id="status">Stato: Non connesso</div>
+                <button id="connect-btn" class="connect-btn" aria-label="Connetti dispositivo MIDI">Connetti MIDI</button>
+            </div>
+        </header>
+
+        <div class="tab-container">
+            <div class="performance-bar">
+                <div class="osc-groups">
+                    <div class="osc-group">
+                        <div class="switch-item">
+                            <label class="switch-label">OSC1</label>
+                            <label class="switch">
+                                <input type="checkbox" id="switch1" aria-label="Attiva OSC1">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <input id="radioosc1" class="visually-hidden" type="radio" name="osc-wave-variation" value="1" aria-label="Invia a OSC1">
+                        <label for="radioosc1" class="dest-btn" aria-live="polite">Invia a OSC1</label>
+                    </div>
+
+                    <div class="osc-group">
+                        <div class="switch-item">
+                            <label class="switch-label">OSC2</label>
+                            <label class="switch">
+                                <input type="checkbox" id="switch2" aria-label="Attiva OSC2">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <input id="radioosc2" class="visually-hidden" type="radio" name="osc-wave-variation" value="2" aria-label="Invia a OSC2">
+                        <label for="radioosc2" class="dest-btn">Invia a OSC2</label>
+                    </div>
+
+                    <div class="osc-group">
+                        <div class="switch-item">
+                            <label class="switch-label">OSC3</label>
+                            <label class="switch">
+                                <input type="checkbox" id="switch3" aria-label="Attiva OSC3">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <input id="radioosc3" class="visually-hidden" type="radio" name="osc-wave-variation" value="3" aria-label="Invia a OSC3">
+                        <label for="radioosc3" class="dest-btn">Invia a OSC3</label>
+                    </div>
+                </div>
+                <div class="performance-actions">
+                    <button id="send-all-btn" class="send-all-btn" aria-label="send all params">send all params</button>
+                </div>
+            </div>
+
+            <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="oscillator">Oscillatore</button>
+                    <button class="tab-btn" data-tab="filter">Filtro</button>
+                    <button class="tab-btn" data-tab="lfo">LFO</button>
+                </div>
+            <div class="tab-content">
+                    <!-- Oscillator Tab -->
+                    <div id="oscillator" class="tab-panel">
+                        <div class="control-group">
+                        <h3>Parametri Oscillatore</h3>
+                            <div class="parameter">
+                                <label for="osc-wave">Forma d'onda</label>
+                                <select id="osc-wave">
+                                    <option value="0">SAW</option>
+                                    <option value="1">SQR</option>
+                                    <option value="2">PW-SQR</option>
+                                    <option value="3">TRI</option>
+                                    <option value="4">SINE</option>
+                                    <option value="5">NOISE</option>
+                                    <option value="6">SUPER-SAW</option>
+                                    <option value="7">PCM</option>
+                                </select>
+                            </div>
+                                         
+
+                            <div class="parameter">
+                                <label for="osc-volume">Volume (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-volume" min="0" max="127" value="64">
+                                    <span class="value" id="osc-volume-value">0</span>
+
+                                </div>
+                            </div>
+                            <div class="parameter">
+                                <label for="osc-pitch">Pitch (40-88) [-24 - +24]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pitch" min="40" max="88" value="64">
+                                    <span class="value" id="osc-pitch-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-detune">Detune (14-114) [-50 - +50]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-detune" min="14" max="114" value="64">
+                                    <span class="value" id="osc-detune-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-pw-mod-depth">Pulse Width Mod Depth (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pw-mod-depth" min="0" max="127" value="64">
+                                    <span class="value" id="osc-pw-mod-depth-value">64</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-pw">Pulse Width (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pw" min="0" max="127" value="64">
+                                    <span class="value" id="osc-pw-value">64</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-pitch-env-attack">Pitch Env Attack Time (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pitch-env-attack" min="0" max="127" value="0">
+                                    <span class="value" id="osc-pitch-env-attack-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-pitch-env-decay">Pitch Env Decay (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pitch-env-decay" min="0" max="127" value="0">
+                                    <span class="value" id="osc-pitch-env-decay-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="osc-pitch-env-depth">Pitch Env Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-pitch-env-depth" min="1" max="127" value="64">
+                                    <span class="value" id="osc-pitch-env-depth-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Tab -->
+                    <div id="filter" class="tab-panel" style="display: none;">
+                        <div class="control-group">
+                            <h3>Parametri Filtro</h3>
+
+                            <div class="parameter">
+                                <label for="filter-mode">Modalità Filtro</label>
+                                <select id="filter-mode">
+                                    <option value="0">BYPASS</option>
+                                    <option value="1">LPF</option>
+                                    <option value="2">HPF</option>
+                                    <option value="3">BPF</option>
+                                    <option value="4">PKG</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-slope">Pendenza Filtro</label>
+                                <select id="filter-slope">
+                                    <option value="0">-12 dB</option>
+                                    <option value="1">-24 dB</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-cutoff">Cutoff (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-cutoff" min="0" max="127" value="127">
+                                    <span class="value" id="filter-cutoff-value">127</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-cutoff-keyfollow">Cutoff Keyfollow (54-74) [-100 - +100]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-cutoff-keyfollow" min="54" max="74" value="64">
+                                    <span class="value" id="filter-cutoff-keyfollow-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-resonance">Resonance (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-resonance" min="0" max="127" value="0">
+                                    <span class="value" id="filter-resonance-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Inviluppo Filtro</h3>
+
+                            <div class="parameter">
+                                <label for="filter-env-attack">Attack Time (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-env-attack" min="0" max="127" value="0">
+                                    <span class="value" id="filter-env-attack-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-env-decay">Decay Time (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-env-decay" min="0" max="127" value="0">
+                                    <span class="value" id="filter-env-decay-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-env-sustain">Sustain Level (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-env-sustain" min="0" max="127" value="127">
+                                    <span class="value" id="filter-env-sustain-value">127</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-env-release">Release Time (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-env-release" min="0" max="127" value="0">
+                                    <span class="value" id="filter-env-release-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="filter-env-depth">Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="filter-env-depth" min="1" max="127" value="64">
+                                    <span class="value" id="filter-env-depth-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LFO Tab -->
+                    <div id="lfo" class="tab-panel" style="display: none;">
+                        <div class="control-group">
+                            <h3>Parametri LFO</h3>
+
+                            <div class="parameter">
+                                <label for="lfo-shape">Forma d'onda LFO</label>
+                                <select id="lfo-shape">
+                                    <option value="0">TRI</option>
+                                    <option value="1">SIN</option>
+                                    <option value="2">SAW</option>
+                                    <option value="3">SQR</option>
+                                    <option value="4">S&H</option>
+                                    <option value="5">RND</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-rate">Rate (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="lfo-rate" min="0" max="127" value="40">
+                                    <span class="value" id="lfo-rate-value">40</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-tempo-sync">Tempo Sync</label>
+                                <select id="lfo-tempo-sync">
+                                    <option value="0">OFF</option>
+                                    <option value="1">ON</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-tempo-sync-note">Tempo Sync Note</label>
+                                <select id="lfo-tempo-sync-note">
+                                    <option value="0">16</option>
+                                    <option value="1">12</option>
+                                    <option value="2">8</option>
+                                    <option value="3">4</option>
+                                    <option value="4">2</option>
+                                    <option value="5">1</option>
+                                    <option value="6">3/4</option>
+                                    <option value="7">2/3</option>
+                                    <option value="8">1/2</option>
+                                    <option value="9">3/8</option>
+                                    <option value="10">1/3</option>
+                                    <option value="11">1/4</option>
+                                    <option value="12">3/16</option>
+                                    <option value="13">1/6</option>
+                                    <option value="14">1/8</option>
+                                    <option value="15">3/32</option>
+                                    <option value="16">1/12</option>
+                                    <option value="17">1/16</option>
+                                    <option value="18">1/24</option>
+                                    <option value="19">1/32</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-fade-time">Fade Time (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="lfo-fade-time" min="0" max="127" value="0">
+                                    <span class="value" id="lfo-fade-time-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-pitch-depth">Pitch Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="lfo-pitch-depth" min="1" max="127" value="64">
+                                    <span class="value" id="lfo-pitch-depth-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-filter-depth">Filter Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="lfo-filter-depth" min="1" max="127" value="64">
+                                    <span class="value" id="lfo-filter-depth-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="lfo-amp-depth">Amp Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="lfo-amp-depth" min="1" max="127" value="64">
+                                    <span class="value" id="lfo-amp-depth-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Parametri Modulation LFO</h3>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-shape">Forma d'onda Mod LFO</label>
+                                <select id="mod-lfo-shape">
+                                    <option value="0">TRI</option>
+                                    <option value="1">SIN</option>
+                                    <option value="2">SAW</option>
+                                    <option value="3">SQR</option>
+                                    <option value="4">S&H</option>
+                                    <option value="5">RND</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-rate">Rate (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="mod-lfo-rate" min="0" max="127" value="40">
+                                    <span class="value" id="mod-lfo-rate-value">40</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-tempo-sync">Tempo Sync</label>
+                                <select id="mod-lfo-tempo-sync">
+                                    <option value="0">OFF</option>
+                                    <option value="1">ON</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-tempo-sync-note">Tempo Sync Note</label>
+                                <select id="mod-lfo-tempo-sync-note">
+                                    <option value="0">16</option>
+                                    <option value="1">12</option>
+                                    <option value="2">8</option>
+                                    <option value="3">4</option>
+                                    <option value="4">2</option>
+                                    <option value="5">1</option>
+                                    <option value="6">3/4</option>
+                                    <option value="7">2/3</option>
+                                    <option value="8">1/2</option>
+                                    <option value="9">3/8</option>
+                                    <option value="10">1/3</option>
+                                    <option value="11">1/4</option>
+                                    <option value="12">3/16</option>
+                                    <option value="13">1/6</option>
+                                    <option value="14">1/8</option>
+                                    <option value="15">3/32</option>
+                                    <option value="16">1/12</option>
+                                    <option value="17">1/16</option>
+                                    <option value="18">1/24</option>
+                                    <option value="19">1/32</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-pitch-depth">Pitch Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="mod-lfo-pitch-depth" min="1" max="127" value="64">
+                                    <span class="value" id="mod-lfo-pitch-depth-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-filter-depth">Filter Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="mod-lfo-filter-depth" min="1" max="127" value="64">
+                                    <span class="value" id="mod-lfo-filter-depth-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="mod-lfo-amp-depth">Amp Depth (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="mod-lfo-amp-depth" min="1" max="127" value="64">
+                                    <span class="value" id="mod-lfo-amp-depth-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <details class="logs-wrapper">
+                    <summary>Log eventi MIDI</summary>
+                    <div class="logs">
+                        <div class="log-entry info">Log eventi MIDI...</div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <script src="vr09b.js"></script>
+        <script>
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js');
+            }
+        </script>
+</body>
+
+</html>
