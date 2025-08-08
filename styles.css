@@ -453,7 +453,7 @@ input:checked+.slider {
 }
 
 /* disabilitato: deve prevalere anche se il radio è checked */
-input[disabled] + label.dest-btn {
+input[disabled], input[disabled] + label.dest-btn {
     background: #e8e8e8 !important;
     color: #999999 !important;
     border-color: #dddddd !important;

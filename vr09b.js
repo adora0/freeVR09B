@@ -29,8 +29,7 @@ OSCILLATOR_ID = 0x00;
 
 // Parameters mapping
 const parameterAddresses = {
-    // Oscillator parameters
-    'osc-volume': 0x15,
+    // Oscillator parameters    
     'osc-wave': 0x00,
     'osc-wave-variation': 0x01,
     'osc-pitch': 0x03,
@@ -70,7 +69,15 @@ const parameterAddresses = {
     'mod-lfo-tempo-sync-note': 0x29,
     'mod-lfo-pitch-depth': 0x2C,
     'mod-lfo-filter-depth': 0x2D,
-    'mod-lfo-amp-depth': 0x2E
+    'mod-lfo-amp-depth': 0x2E,
+
+    //Amp parameters
+    'osc-volume': 0x15,
+    'amp-volume-env-attack': 0x17,
+    'amp-volume-env-decay': 0x18,
+    'amp-volume-env-sustain': 0x19,
+    'amp-volume-env-release': 0x1A,
+    'amp-pan': 0x1B   
 };
 
 
@@ -345,7 +352,7 @@ function formatSysEx(sysex) {
 }
 
 // Send all parameters to the VR-09B
-sendAllBtn.addEventListener('click', () => {
+/*sendAllBtn.addEventListener('click', () => {
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return;
@@ -369,7 +376,7 @@ sendAllBtn.addEventListener('click', () => {
 
     logMessage(`Invio completato: ${successCount} parametri inviati, ${failCount} falliti`,
         failCount > 0 ? 'error' : 'success');
-});
+});*/
 
 // Add event listeners to all parameters for real-time control
 document.querySelectorAll('select, input[type="range"]').forEach(element => {
@@ -406,27 +413,33 @@ function updateOscillatorStatus() {
     // Abilita o no i radio button in base allo stato degli switch
     if (osc1) {
         rdosc1.disabled = false;
+        rdosc1.removeAttribute('disabled');
         setOscOn('25', '1');
     } else {
         rdosc1.disabled = true;
+        rdosc1.setAttribute('disabled', '');
         setOscOn('25', '0');
     }
     if (osc2) {
         rdosc2.disabled = false;
+        rdosc2.removeAttribute('disabled');
         setOscOn('27', '1');
     }
     else {
         rdosc2.disabled = true;
+        rdosc2.setAttribute('disabled', '');
         setOscOn('27', '0');
 
     }
     if (osc3) {
         rdosc3.disabled = false;
+        rdosc3.removeAttribute('disabled');
         setOscOn('29', '1');
 
     }
     else {
         rdosc3.disabled = true;
+        rdosc3.setAttribute('disabled', '');
         setOscOn('29', '0');
 
     }
@@ -488,6 +501,9 @@ window.addEventListener('DOMContentLoaded', () => {
     saveCurrentOscParams('1');
     saveCurrentOscParams('2');
     saveCurrentOscParams('3');
+
+    // Allinea lo stato dei pulsanti di destinazione con gli switch all'avvio
+    updateOscillatorStatus();
 });
 
 
@@ -506,6 +522,11 @@ window.addEventListener('DOMContentLoaded', () => {
             loadOscParams(activeOscId);
 
             console.log(`Salvato provenienza, caricato destinazione: ${activeOscId}`, oscillatorParams[activeOscId]);
+        });
+        // Abilita lo stato iniziale del bordo/stile anche al focus via tastiera/tocco
+        radio.addEventListener('change', () => {
+            // forza repaint stile CSS dipendente da :checked
+            // (nessuna logica aggiuntiva necessaria)
         });
     }
 });
