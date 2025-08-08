@@ -70,6 +70,7 @@
                     <button class="tab-btn active" data-tab="oscillator">Oscillatore</button>
                     <button class="tab-btn" data-tab="filter">Filtro</button>
                     <button class="tab-btn" data-tab="lfo">LFO</button>
+                    <button class="tab-btn" data-tab="amp">Amp</button>
                 </div>
             <div class="tab-content">
                     <!-- Oscillator Tab -->
@@ -92,12 +93,7 @@
                                          
 
                             <div class="parameter">
-                                <label for="osc-volume">Volume (0-127)</label>
-                                <div class="slider-container">
-                                    <input type="range" id="osc-volume" min="0" max="127" value="64">
-                                    <span class="value" id="osc-volume-value">0</span>
-
-                                </div>
+                                
                             </div>
                             <div class="parameter">
                                 <label for="osc-pitch">Pitch (40-88) [-24 - +24]</label>
@@ -421,6 +417,61 @@
                                 <div class="slider-container">
                                     <input type="range" id="mod-lfo-amp-depth" min="1" max="127" value="64">
                                     <span class="value" id="mod-lfo-amp-depth-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amp Tab -->
+                    <div id="amp" class="tab-panel" style="display: none;">
+                        <div class="control-group">
+                            <h3>Parametri Amp</h3>
+
+                            <div class="parameter">
+                                <label for="osc-volume">Osc Volume (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="osc-volume" min="0" max="127" value="64">
+                                    <span class="value" id="osc-volume-value">64</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="amp-volume-env-attack">Amp Env Attack (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="amp-volume-env-attack" min="0" max="127" value="0">
+                                    <span class="value" id="amp-volume-env-attack-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="amp-volume-env-decay">Amp Env Decay (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="amp-volume-env-decay" min="0" max="127" value="0">
+                                    <span class="value" id="amp-volume-env-decay-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="amp-volume-env-sustain">Amp Env Sustain (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="amp-volume-env-sustain" min="0" max="127" value="127">
+                                    <span class="value" id="amp-volume-env-sustain-value">127</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="amp-volume-env-release">Amp Env Release (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="amp-volume-env-release" min="0" max="127" value="0">
+                                    <span class="value" id="amp-volume-env-release-value">0</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <label for="amp-pan">Amp Pan (1-127) [-63 - +63]</label>
+                                <div class="slider-container">
+                                    <input type="range" id="amp-pan" min="1" max="127" value="64">
+                                    <span class="value" id="amp-pan-value">0</span>
                                 </div>
                             </div>
                         </div>
