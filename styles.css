@@ -323,7 +323,7 @@ input:checked+.slider {
         gap: 8px;
         align-items: stretch;
     }
-    .osc-groups { grid-template-columns: 1fr; }
+    .osc-groups { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .performance-actions { justify-content: center; }
     .send-all-btn {
         width: auto;
@@ -353,9 +353,18 @@ input:checked+.slider {
     align-items: center;
 }
 
+/* Quando in landscape su smartphone piccoli, sblocca l'intestazione per liberare spazio */
+@media (max-height: 480px) and (orientation: landscape) {
+    html, body { height: auto; }
+    body { overflow: auto; }
+    .container { height: auto; }
+    .tab-container { min-height: auto; }
+    .app-bar { position: static; }
+}
+
 .osc-groups {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
 }
 .performance-actions {
