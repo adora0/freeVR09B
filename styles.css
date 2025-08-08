@@ -308,6 +308,7 @@ input:checked+.slider {
         gap: 6px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        max-width: 100%;
     }
     .tab-btn {
         flex: 0 0 auto;
@@ -322,6 +323,7 @@ input:checked+.slider {
         grid-template-columns: 1fr;
         gap: 8px;
         align-items: stretch;
+        overflow: hidden;
     }
     .osc-groups { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .performance-actions { justify-content: center; }
@@ -351,6 +353,7 @@ input:checked+.slider {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
+    overflow: hidden;
 }
 
 /* Quando in landscape su smartphone piccoli, sblocca l'intestazione per liberare spazio */
@@ -366,6 +369,8 @@ input:checked+.slider {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
+    width: 100%;
+    max-width: 100%;
 }
 .performance-actions {
     align-self: stretch;
@@ -387,6 +392,7 @@ input:checked+.slider {
     border: 2px solid transparent;
     border-radius: 8px;
     padding: 4px;
+    min-width: 0; /* evita overflow su grid */
 }
 
 .destination {
@@ -423,6 +429,9 @@ input:checked+.slider {
     cursor: pointer;
     user-select: none;
     transition: background-color .15s, color .15s, border-color .15s;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #radioosc1:checked + label.dest-btn,
