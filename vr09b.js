@@ -9,13 +9,27 @@ const logsContainer = document.querySelector('.logs');
 const rdosc1 = document.getElementById('radioosc1');
 const rdosc2 = document.getElementById('radioosc2');
 const rdosc3 = document.getElementById('radioosc3');
+// Preset modal elements
+const openPresetDialogBtn = document.getElementById('open-preset-dialog');
+const presetModal = document.getElementById('preset-modal');
+const logModal = document.getElementById('log-modal');
+const openMenuBtn = document.getElementById('open-menu-btn');
+const menuDropdown = document.getElementById('menu-dropdown');
+const menuConnect = document.getElementById('menu-connect');
+const menuReset = document.getElementById('menu-reset');
+const menuSendAll = document.getElementById('menu-sendall');
+const menuPresets = document.getElementById('menu-presets');
+const menuLogs = document.getElementById('menu-logs');
+const savePresetBtn = document.getElementById('save-preset-btn');
+const loadPresetBtn = document.getElementById('load-preset-btn');
+const presetFileInput = document.getElementById('preset-file-input');
 
 rdosc1.disabled = true;
 rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
-let testMode = true; // Flag per abilitare la modalità test
+let testMode = false; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
 let midiOutput = null;
@@ -373,11 +387,13 @@ function sendAllParameters() {
 }
 
 // Send all parameters to the VR-09B (button with visual feedback)
-sendAllBtn.addEventListener('click', () => {
-    try { sendAllBtn.classList.add('is-pressed'); } catch (_) {}
-    sendAllParameters();
-    setTimeout(() => { try { sendAllBtn.classList.remove('is-pressed'); } catch (_) {} }, 90);
-});
+if (sendAllBtn) {
+    sendAllBtn.addEventListener('click', () => {
+        try { sendAllBtn.classList.add('is-pressed'); } catch (_) {}
+        sendAllParameters();
+        setTimeout(() => { try { sendAllBtn.classList.remove('is-pressed'); } catch (_) {} }, 90);
+    });
+}
 
 // Add event listeners to all parameters for real-time control
 document.querySelectorAll('select, input[type="range"]').forEach(element => {
@@ -582,7 +598,182 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Allinea lo stato dei pulsanti di destinazione con gli switch all'avvio
     updateOscillatorStatus();
+    // Modal bindings
+    if (menuPresets && presetModal) {
+
+        const openPreset = () => { presetModal.hidden = false; };
+        const closePreset = () => { presetModal.hidden = true; };
+        menuPresets.addEventListener('click', (e) => { e.stopPropagation(); openPreset(); });
+        presetModal.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.dataset && target.dataset.close !== undefined) {
+                closePreset();
+            }
+        });
+        // ESC to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !presetModal.hidden) closePreset();
+        });
+    }
+    // modal actions reduced to save/load only
+    if (savePresetBtn) savePresetBtn.addEventListener('click', () => saveCurrentPreset());
+    if (loadPresetBtn && presetFileInput) {
+        loadPresetBtn.addEventListener('click', () => presetFileInput.click());
+        presetFileInput.addEventListener('change', onPresetFileSelected);
+    }
+
+    // Header menu bindings
+    if (openMenuBtn && menuDropdown) {
+        const closeMenu = () => {
+            menuDropdown.hidden = true;
+            openMenuBtn.setAttribute('aria-expanded', 'false');
+        };
+        openMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const expanded = openMenuBtn.getAttribute('aria-expanded') === 'true';
+            if (expanded) {
+                closeMenu();
+            } else {
+                menuDropdown.hidden = false;
+                openMenuBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!menuDropdown.hidden && !openMenuBtn.contains(e.target) && !menuDropdown.contains(e.target)) {
+                closeMenu();
+            }
+        });
+        document.addEventListener('keydown', (e) => {            
+            if (e.key === 'Escape' && !menuDropdown.hidden) close();
+        });
+    }
+    if (menuConnect) menuConnect.addEventListener('click', () => connectBtn.click());
+    if (menuReset) menuReset.addEventListener('click', () => resetAllToDefaults());
+    if (menuSendAll) menuSendAll.addEventListener('click', () => sendAllParameters());
+    if (menuPresets) menuPresets.addEventListener('click', () => { if (presetModal) presetModal.hidden = false; });
+    if (menuLogs && logModal) {
+        menuLogs.addEventListener('click', () => logModal.hidden = false);
+        logModal.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.dataset && target.dataset.close !== undefined) {
+                logModal.hidden = true;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !logModal.hidden) logModal.hidden = true;
+        });
+    }
 });
+// Defaults object reused
+const DEFAULTS = {
+    // Oscillator
+    'osc-wave': '0',
+    'osc-pitch': '64',
+    'osc-detune': '64',
+    'osc-pw-mod-depth': '64',
+    'osc-pw': '64',
+    'osc-pitch-env-attack': '0',
+    'osc-pitch-env-decay': '0',
+    'osc-pitch-env-depth': '64',
+
+    // Filter
+    'filter-mode': '0',
+    'filter-slope': '0',
+    'filter-cutoff': '127',
+    'filter-cutoff-keyfollow': '64',
+    'filter-resonance': '0',
+    'filter-env-attack': '0',
+    'filter-env-decay': '0',
+    'filter-env-sustain': '127',
+    'filter-env-release': '0',
+    'filter-env-depth': '64',
+
+    // LFO
+    'lfo-shape': '0',
+    'lfo-rate': '40',
+    'lfo-tempo-sync': '0',
+    'lfo-tempo-sync-note': '0',
+    'lfo-fade-time': '0',
+    'lfo-pitch-depth': '64',
+    'lfo-filter-depth': '64',
+    'lfo-amp-depth': '64',
+
+    // Mod LFO
+    'mod-lfo-shape': '0',
+    'mod-lfo-rate': '40',
+    'mod-lfo-tempo-sync': '0',
+    'mod-lfo-tempo-sync-note': '0',
+    'mod-lfo-pitch-depth': '64',
+    'mod-lfo-filter-depth': '64',
+    'mod-lfo-amp-depth': '64',
+
+    // Amp
+    'osc-volume': '64',
+    'amp-volume-env-attack': '0',
+    'amp-volume-env-decay': '0',
+    'amp-volume-env-sustain': '127',
+    'amp-volume-env-release': '0',
+    'amp-pan': '64'
+};
+
+function applyValuesToDom(values) {
+    Object.entries(values).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = String(val);
+        const valueEl = document.getElementById(`${id}-value`);
+        if (valueEl) {
+            if (bidirectionalParams.includes(id)) {
+                const centerValue = (parseInt(el.min) + parseInt(el.max)) / 2;
+                valueEl.textContent = Math.round(parseInt(val) - centerValue);
+            } else {
+                valueEl.textContent = String(val);
+            }
+        }
+    });
+}
+
+function resetAllToDefaults() {
+    applyValuesToDom(DEFAULTS);
+    sendAllParameters();
+}
+
+function collectCurrentValues() {
+    const values = {};
+    document.querySelectorAll('select, input[type="range"]').forEach(el => {
+        if (el.id && el.id !== 'midi-output-select') values[el.id] = el.value;
+    });
+    return values;
+}
+
+function saveCurrentPreset() {
+    const data = collectCurrentValues();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `freevr09b-preset-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function onPresetFileSelected(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const json = JSON.parse(reader.result);
+            applyValuesToDom(json);
+            sendAllParameters();
+        } catch (err) {
+            logMessage('Preset non valido: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
 
 
 // Event listener per i radio button degli oscillatori

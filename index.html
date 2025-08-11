@@ -22,6 +22,16 @@
             <div class="connection-inline">
                 <div id="status">Stato: Non connesso</div>
                 <button id="connect-btn" class="connect-btn" aria-label="Connetti dispositivo MIDI">Connetti</button>
+                <div class="menu-container">
+                    <button id="open-menu-btn" class="menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Apri menu">☰</button>
+                    <div id="menu-dropdown" class="menu-dropdown" hidden>
+                        <button id="menu-connect" class="menu-item">Connetti</button>
+                        <button id="menu-reset" class="menu-item">Reset</button>
+                        <button id="menu-sendall" class="menu-item">Send all params</button>
+                        <button id="menu-presets" class="menu-item">Presets</button>
+                        <button id="menu-logs" class="menu-item">Visualizza log</button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -482,16 +492,38 @@
                     </div>
                 </div>
             </div>
-            <div class="utility-actions">
-                <button id="reset-defaults-btn" class="reset-btn" aria-label="reset all to defaults">reset</button>
-                <button id="send-all-btn" class="send-all-btn" aria-label="send all params">send all params</button>
+        </div>
+    </div>
+
+    <!-- Preset dialog modal -->
+    <div id="preset-modal" class="modal" hidden>
+        <div class="modal-backdrop" data-close="true"></div>
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title">
+            <div class="modal-header">
+                <h3 id="preset-modal-title">Presets</h3>
+                <button id="modal-close" class="modal-close" aria-label="Close" data-close="true">×</button>
             </div>
-            <details class="logs-wrapper">
-                <summary>Log eventi MIDI</summary>
-                <div class="logs">
-                    <div class="log-entry info">Log eventi MIDI...</div>
+            <div class="modal-body">
+                <div class="modal-actions">
+                    <button id="save-preset-btn" class="preset-action-btn">salva preset</button>
+                    <button id="load-preset-btn" class="preset-action-btn">carica preset</button>
+                    <input id="preset-file-input" type="file" accept="application/json" hidden />
                 </div>
-            </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log dialog modal -->
+    <div id="log-modal" class="modal" hidden>
+        <div class="modal-backdrop" data-close="true"></div>
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="log-modal-title">
+            <div class="modal-header">
+                <h3 id="log-modal-title">Log eventi MIDI</h3>
+                <button class="modal-close" aria-label="Close" data-close="true">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="logs"></div>
+            </div>
         </div>
     </div>
 
