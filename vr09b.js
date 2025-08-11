@@ -15,7 +15,7 @@ rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
-let testMode = false; // Flag per abilitare la modalità test
+let testMode = true; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
 let midiOutput = null;
@@ -351,8 +351,8 @@ function formatSysEx(sysex) {
         .join(' '); // Inserisce uno spazio tra i byte
 }
 
-// Send all parameters to the VR-09B
-/*sendAllBtn.addEventListener('click', () => {
+// Core logic to send all parameters (callable without UI effects)
+function sendAllParameters() {
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return;
@@ -361,22 +361,23 @@ function formatSysEx(sysex) {
     let successCount = 0;
     let failCount = 0;
 
-    // Process all inputs
     document.querySelectorAll('select, input[type="range"]').forEach(element => {
         if (element.id !== 'midi-output-select') {
-
             const result = sendParameterValue(element.id, element.value);
-            if (result) {
-                successCount++;
-            } else {
-                failCount++;
-            }
+            if (result) successCount++; else failCount++;
         }
     });
 
     logMessage(`Invio completato: ${successCount} parametri inviati, ${failCount} falliti`,
         failCount > 0 ? 'error' : 'success');
-});*/
+}
+
+// Send all parameters to the VR-09B (button with visual feedback)
+sendAllBtn.addEventListener('click', () => {
+    try { sendAllBtn.classList.add('is-pressed'); } catch (_) {}
+    sendAllParameters();
+    setTimeout(() => { try { sendAllBtn.classList.remove('is-pressed'); } catch (_) {} }, 90);
+});
 
 // Add event listeners to all parameters for real-time control
 document.querySelectorAll('select, input[type="range"]').forEach(element => {
@@ -401,6 +402,83 @@ document.querySelectorAll('select, input[type="range"]').forEach(element => {
         });
     }
 });
+
+// Reset all parameters to defaults and send them
+const resetDefaultsBtn = document.getElementById('reset-defaults-btn');
+if (resetDefaultsBtn) {
+    resetDefaultsBtn.addEventListener('click', () => {
+        try { resetDefaultsBtn.classList.add('is-pressed'); } catch (_) {}
+        const defaults = {
+            // Oscillator
+            'osc-wave': '0',
+            'osc-pitch': '64',
+            'osc-detune': '64',
+            'osc-pw-mod-depth': '64',
+            'osc-pw': '64',
+            'osc-pitch-env-attack': '0',
+            'osc-pitch-env-decay': '0',
+            'osc-pitch-env-depth': '64',
+
+            // Filter
+            'filter-mode': '0',
+            'filter-slope': '0',
+            'filter-cutoff': '127',
+            'filter-cutoff-keyfollow': '64',
+            'filter-resonance': '0',
+            'filter-env-attack': '0',
+            'filter-env-decay': '0',
+            'filter-env-sustain': '127',
+            'filter-env-release': '0',
+            'filter-env-depth': '64',
+
+            // LFO
+            'lfo-shape': '0',
+            'lfo-rate': '40',
+            'lfo-tempo-sync': '0',
+            'lfo-tempo-sync-note': '0',
+            'lfo-fade-time': '0',
+            'lfo-pitch-depth': '64',
+            'lfo-filter-depth': '64',
+            'lfo-amp-depth': '64',
+
+            // Mod LFO
+            'mod-lfo-shape': '0',
+            'mod-lfo-rate': '40',
+            'mod-lfo-tempo-sync': '0',
+            'mod-lfo-tempo-sync-note': '0',
+            'mod-lfo-pitch-depth': '64',
+            'mod-lfo-filter-depth': '64',
+            'mod-lfo-amp-depth': '64',
+
+            // Amp
+            'osc-volume': '64',
+            'amp-volume-env-attack': '0',
+            'amp-volume-env-decay': '0',
+            'amp-volume-env-sustain': '127',
+            'amp-volume-env-release': '0',
+            'amp-pan': '64'
+        };
+
+        Object.entries(defaults).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = val;
+            const valueEl = document.getElementById(`${id}-value`);
+            if (valueEl) {
+                if (bidirectionalParams.includes(id)) {
+                    const centerValue = (parseInt(el.min) + parseInt(el.max)) / 2;
+                    valueEl.textContent = Math.round(parseInt(val) - centerValue);
+                } else {
+                    valueEl.textContent = val;
+                }
+            }
+        });
+
+        // Invia tutti i parametri dopo il reset (senza effetto visivo sul bottone send)
+        sendAllParameters();
+        setTimeout(() => { try { resetDefaultsBtn.classList.remove('is-pressed'); } catch (_) {} }, 120);
+    });
+}
 
 
 function updateOscillatorStatus() {
