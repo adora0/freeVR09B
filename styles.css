@@ -595,3 +595,32 @@ input[disabled], input[disabled] + label.dest-btn {
     border-color: #dddddd !important;
     cursor: not-allowed;
 }
+
+/* Migliora la modal dei preset */
+.preset-status-message {
+    margin: 16px 0;
+    padding: 12px;
+    background: #d2dfd2;
+    color: #206020;
+    border-radius: 6px;
+    font-size: 1.1em;
+    text-align: center;
+    border: 1px solid #f34646;
+}
+
+.preset-ok-btn {
+    display: block;
+    margin: 0 auto 8px auto;
+    padding: 8px 24px;
+    background: #206020;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.preset-ok-btn:hover {
+    background: #e43d48;
+}

@@ -11,6 +11,8 @@ const rdosc2 = document.getElementById('radioosc2');
 const rdosc3 = document.getElementById('radioosc3');
 // Preset modal elements
 const openPresetDialogBtn = document.getElementById('open-preset-dialog');
+const presetStatusMessage = document.getElementById('preset-status-message');
+const presetOkBtn = document.getElementById('preset-ok-btn');
 const presetModal = document.getElementById('preset-modal');
 const logModal = document.getElementById('log-modal');
 const openMenuBtn = document.getElementById('open-menu-btn');
@@ -29,7 +31,7 @@ rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
-let testMode = false; // Flag per abilitare la modalità test
+let testMode = true; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
 let midiOutput = null;
@@ -91,7 +93,7 @@ const parameterAddresses = {
     'amp-volume-env-decay': 0x18,
     'amp-volume-env-sustain': 0x19,
     'amp-volume-env-release': 0x1A,
-    'amp-pan': 0x1B   
+    'amp-pan': 0x1B
 };
 
 
@@ -250,7 +252,7 @@ function showMidiOutputSelection() {
 }
 
 // Send parameter value to VR-09B
-function sendParameterValue(paramId, value) {
+function sendParameterValue(paramId, value, oscIdOverride) {
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return false;
@@ -263,15 +265,19 @@ function sendParameterValue(paramId, value) {
     }
 
     try {
-        // Trova tutti i radiobutton con il nome 'osc-wave-variation'
-        const oscSelected = document.querySelectorAll('input[name="osc-wave-variation"]:checked');
-        if (oscSelected.length === 0) {
-            logMessage('Nessun oscillatore selezionato', 'error');
-            return false;
+        // Determina l'ID dell'oscillatore: override > radio selezionata > errore
+        let targetOscId = null;
+        if (oscIdOverride !== undefined && oscIdOverride !== null) {
+            targetOscId = String(oscIdOverride);
+        } else {
+            const oscSelected = document.querySelectorAll('input[name="osc-wave-variation"]:checked');
+            if (oscSelected.length === 0) {
+                logMessage('Nessun oscillatore selezionato', 'error');
+                return false;
+            }
+            targetOscId = oscSelected[0].value;
         }
 
-        // Invia solo all'oscillatore selezionato
-        OSCILLATOR_ID = oscSelected[0].value;
         const sysexMessage = [
             0xF0,
             ROLAND_MANUFACTURER_ID,
@@ -279,7 +285,7 @@ function sendParameterValue(paramId, value) {
             ...MODEL_ID,
             COMMAND_ID,
             ...UPPER_ID,
-            OSCILLATOR_ID,
+            targetOscId,
             address,
             parseInt(value),
             0x00,
@@ -375,6 +381,7 @@ function sendAllParameters() {
     let successCount = 0;
     let failCount = 0;
 
+    // invia i valori attuali della UI per l'oscillatore selezionato
     document.querySelectorAll('select, input[type="range"]').forEach(element => {
         if (element.id !== 'midi-output-select') {
             const result = sendParameterValue(element.id, element.value);
@@ -386,96 +393,53 @@ function sendAllParameters() {
         failCount > 0 ? 'error' : 'success');
 }
 
-// Send all parameters to the VR-09B (button with visual feedback)
-if (sendAllBtn) {
-    sendAllBtn.addEventListener('click', () => {
-        try { sendAllBtn.classList.add('is-pressed'); } catch (_) {}
-        sendAllParameters();
-        setTimeout(() => { try { sendAllBtn.classList.remove('is-pressed'); } catch (_) {} }, 90);
-    });
+// Map oscillatore numerico (1/2/3) a ID SysEx usati nel progetto
+function mapOscNumberToSysExId(oscNumber) {
+    // valori usati nelle altre parti del codice: '25','27','29'
+    switch (String(oscNumber)) {
+        case '1': return '25';
+        case '2': return '27';
+        case '3': return '29';
+        default: return '25';
+    }
 }
 
-// Add event listeners to all parameters for real-time control
-document.querySelectorAll('select, input[type="range"]').forEach(element => {
-    if (element.id !== 'midi-output-select') {
-        let lastSend = 0;
-        let lastValue = element.value;
-
-        // Invia durante lo scorrimento (input) con throttling 50ms
-        element.addEventListener('input', () => {
-            const now = Date.now();
-            if (now - lastSend > 50 || element.value !== lastValue) {
-                sendParameterValue(element.id, element.value);
-                
-                lastSend = now;
-                lastValue = element.value;
-            }
-        });
-
-        // Invia comunque al rilascio (per sicurezza)
-        element.addEventListener('change', () => {
-            sendParameterValue(element.id, element.value);
-        });
+// Invia tutti i parametri per gli oscillatori attivi usando i dati forniti
+function sendAllParametersForOscillators(paramsByOsc) {
+    if (!midiOutput && !testMode) {
+        logMessage('Nessun dispositivo MIDI connesso', 'error');
+        return;
     }
-});
+
+    let successCount = 0;
+    let failCount = 0;
+
+    ['1', '2', '3'].forEach(oscNum => {
+        const params = paramsByOsc[oscNum] || {};
+        const isActive = params['is-active'] === '1';
+        if (!isActive) return;
+
+        const sysExOscId = mapOscNumberToSysExId(oscNum);
+
+        // Invia tutti i parametri salvati per questo oscillatore (escludi is-active)
+        Object.entries(params).forEach(([paramId, val]) => {
+            if (paramId === 'is-active') return;
+            const res = sendParameterValue(paramId, val, sysExOscId);
+            if (res) successCount++; else failCount++;
+        });
+    });
+
+    logMessage(`Invio completato: ${successCount} parametri inviati, ${failCount} falliti`,
+        failCount > 0 ? 'error' : 'success');
+}
 
 // Reset all parameters to defaults and send them
 const resetDefaultsBtn = document.getElementById('reset-defaults-btn');
 if (resetDefaultsBtn) {
     resetDefaultsBtn.addEventListener('click', () => {
-        try { resetDefaultsBtn.classList.add('is-pressed'); } catch (_) {}
-        const defaults = {
-            // Oscillator
-            'osc-wave': '0',
-            'osc-pitch': '64',
-            'osc-detune': '64',
-            'osc-pw-mod-depth': '64',
-            'osc-pw': '64',
-            'osc-pitch-env-attack': '0',
-            'osc-pitch-env-decay': '0',
-            'osc-pitch-env-depth': '64',
+        try { resetDefaultsBtn.classList.add('is-pressed'); } catch (_) { }
 
-            // Filter
-            'filter-mode': '0',
-            'filter-slope': '0',
-            'filter-cutoff': '127',
-            'filter-cutoff-keyfollow': '64',
-            'filter-resonance': '0',
-            'filter-env-attack': '0',
-            'filter-env-decay': '0',
-            'filter-env-sustain': '127',
-            'filter-env-release': '0',
-            'filter-env-depth': '64',
-
-            // LFO
-            'lfo-shape': '0',
-            'lfo-rate': '40',
-            'lfo-tempo-sync': '0',
-            'lfo-tempo-sync-note': '0',
-            'lfo-fade-time': '0',
-            'lfo-pitch-depth': '64',
-            'lfo-filter-depth': '64',
-            'lfo-amp-depth': '64',
-
-            // Mod LFO
-            'mod-lfo-shape': '0',
-            'mod-lfo-rate': '40',
-            'mod-lfo-tempo-sync': '0',
-            'mod-lfo-tempo-sync-note': '0',
-            'mod-lfo-pitch-depth': '64',
-            'mod-lfo-filter-depth': '64',
-            'mod-lfo-amp-depth': '64',
-
-            // Amp
-            'osc-volume': '64',
-            'amp-volume-env-attack': '0',
-            'amp-volume-env-decay': '0',
-            'amp-volume-env-sustain': '127',
-            'amp-volume-env-release': '0',
-            'amp-pan': '64'
-        };
-
-        Object.entries(defaults).forEach(([id, val]) => {
+        Object.entries(DEFAULTS).forEach(([id, val]) => {
             const el = document.getElementById(id);
             if (!el) return;
             el.value = val;
@@ -492,7 +456,7 @@ if (resetDefaultsBtn) {
 
         // Invia tutti i parametri dopo il reset (senza effetto visivo sul bottone send)
         sendAllParameters();
-        setTimeout(() => { try { resetDefaultsBtn.classList.remove('is-pressed'); } catch (_) {} }, 120);
+        setTimeout(() => { try { resetDefaultsBtn.classList.remove('is-pressed'); } catch (_) { } }, 120);
     });
 }
 
@@ -579,7 +543,7 @@ window.addEventListener('load', () => {
     } else {
         logMessage('Web MIDI API supportata. Premi "Connetti MIDI" per iniziare.', 'info');
     }
-    
+
 });
 
 // Oggetto per memorizzare i parametri di ciascun oscillatore
@@ -643,7 +607,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 closeMenu();
             }
         });
-        document.addEventListener('keydown', (e) => {            
+        document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !menuDropdown.hidden) close();
         });
     }
@@ -666,6 +630,9 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 // Defaults object reused
 const DEFAULTS = {
+    //stato Oscillatore
+    'is-active': '0', // 0 = spento, 1 = acceso
+
     // Oscillator
     'osc-wave': '0',
     'osc-pitch': '64',
@@ -738,21 +705,25 @@ function resetAllToDefaults() {
     sendAllParameters();
 }
 
-function collectCurrentValues() {
+/*function collectCurrentValues() {
     const values = {};
-    document.querySelectorAll('select, input[type="range"]').forEach(el => {
+    document.querySelectorAll('select, input[type="range"]').forEach el => {
         if (el.id && el.id !== 'midi-output-select') values[el.id] = el.value;
     });
     return values;
-}
+}*/
 
 function saveCurrentPreset() {
-    const data = collectCurrentValues();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    // Memorizzo l'array dati con i parametri correnti per ciascun oscillatore
+    /* saveCurrentOscParams('1');
+     saveCurrentOscParams('2');
+     saveCurrentOscParams('3');*/
+    console.log('Preset salvato:', oscillatorParams);
+    const blob = new Blob([JSON.stringify(oscillatorParams, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `freevr09b-preset-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    a.download = `freevr09b-preset-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -766,8 +737,28 @@ function onPresetFileSelected(e) {
     reader.onload = () => {
         try {
             const json = JSON.parse(reader.result);
-            applyValuesToDom(json);
-            sendAllParameters();
+            oscillatorParams['1'] = json['1'] || {};
+            oscillatorParams['2'] = json['2'] || {};
+            oscillatorParams['3'] = json['3'] || {};
+            // Applica lo stato degli switch per ciascun oscillatore e aggiorna l'hardware
+            ['1', '2', '3'].forEach(num => {
+                const sw = document.getElementById(`switch${num}`);
+                const isActive = oscillatorParams[num] && oscillatorParams[num]['is-active'] === '1';
+                if (sw) sw.checked = isActive;              
+            });
+
+            // Aggiorna gli stati degli oscillatori
+            updateOscillatorStatus();
+
+               // Scegli quale oscillatore mostrare nella UI
+            const firstActive = ['1', '2', '3'].find(n => oscillatorParams[n] && oscillatorParams[n]['is-active'] === '1');
+            activeOscId = firstActive || '1';
+
+            // Carica SOLO i parametri dell’oscillatore attivo nella UI
+            loadOscParams(activeOscId);
+
+            // Invio tutti i parametri per gli oscillatori attivi usando il preset appena caricato
+            sendAllParametersForOscillators(oscillatorParams);
         } catch (err) {
             logMessage('Preset non valido: ' + err.message, 'error');
         }
@@ -775,22 +766,29 @@ function onPresetFileSelected(e) {
     reader.readAsText(file);
 }
 
+// Salva ogni parametro in memoria appena viene modificato
+document.querySelectorAll('input[type="range"], select').forEach(el => {
+    el.addEventListener('input', () => {
+        if (el.id && el.id !== 'midi-output-select') {
+            oscillatorParams[activeOscId][el.id] = el.value;
+            sendParameterValue(el.id, el.value); // <--- invia subito il parametro MIDI
+        }
+    });
+});
 
 // Event listener per i radio button degli oscillatori
 ['radioosc1', 'radioosc2', 'radioosc3'].forEach(radioId => {
     const radio = document.getElementById(radioId);
     if (radio) {
         radio.addEventListener('click', () => {
-             // 1. Salva i parametri dell'oscillatore attivo (provenienza)
-            saveCurrentOscParams(activeOscId);
+            // RIMUOVI questa riga:
+            // saveCurrentOscParams(activeOscId);
 
-            // 2. Aggiorna l'oscillatore attivo con quello appena selezionato
+            // Aggiorna l'oscillatore attivo con quello appena selezionato
             activeOscId = radio.value;
 
-            // 3. Carica i parametri dell'oscillatore appena selezionato (cliccato)
+            // Carica i parametri dell'oscillatore appena selezionato (cliccato)
             loadOscParams(activeOscId);
-
-            console.log(`Salvato provenienza, caricato destinazione: ${activeOscId}`, oscillatorParams[activeOscId]);
         });
         // Abilita lo stato iniziale del bordo/stile anche al focus via tastiera/tocco
         radio.addEventListener('change', () => {
@@ -802,16 +800,23 @@ function onPresetFileSelected(e) {
 
 // Funzione per salvare tutti i parametri correnti per l'oscillatore attivo
 function saveCurrentOscParams(oscId) {
+    // salva range/select come prima
     document.querySelectorAll('input[type="range"], select').forEach(el => {
         if (el.id && el.id !== 'midi-output-select') {
             oscillatorParams[oscId][el.id] = el.value;
+
         }
     });
+
+    // salva lo stato dello switch specifico per questo oscillatore
+    const switchEl = document.getElementById(`switch${oscId}`);
+    oscillatorParams[oscId]['is-active'] = (switchEl && switchEl.checked) ? '1' : '0';
 }
 
 function loadOscParams(oscId) {
     const params = oscillatorParams[oscId];
     if (!params) return;
+   
     document.querySelectorAll('input[type="range"], select').forEach(el => {
         if (el.id && el.id !== 'midi-output-select' && params.hasOwnProperty(el.id)) {
             el.value = params[el.id];
@@ -828,3 +833,29 @@ function loadOscParams(oscId) {
         }
     });
 }
+
+// Funzione per mostrare messaggio nella modal
+function showPresetStatus(msg) {
+    presetStatusMessage.textContent = msg;
+    presetStatusMessage.style.display = 'block';
+    presetOkBtn.style.display = 'block';
+}
+
+// Pulsante OK chiude la modal e resetta il messaggio
+presetOkBtn.addEventListener('click', () => {
+    presetModal.hidden = true;
+    presetStatusMessage.style.display = 'none';
+    presetOkBtn.style.display = 'none';
+});
+
+// Quando salvi il preset
+savePresetBtn.addEventListener('click', () => {
+    // ...salvataggio preset...
+    showPresetStatus('Preset salvato correttamente!');
+});
+
+// Quando carichi il preset
+presetFileInput.addEventListener('change', (e) => {
+    // ...caricamento preset...
+    showPresetStatus('Preset caricato correttamente!');
+});
