@@ -371,6 +371,80 @@ function formatSysEx(sysex) {
         .join(' '); // Inserisce uno spazio tra i byte
 }
 
+// Invia un messaggio MIDI Note On (Mode 2 - Keyboard Sound Generator)
+// channelIndex: 0-15 (0=Canale 1, 3=Canale 4, ecc.)
+// noteNumber: 0-127 (numero della nota MIDI)
+// velocity: 1-127 (velocità della nota, non usare 0 per Note On)
+function sendMidiNoteOn(channelIndex, noteNumber, velocity = 95) {
+    if (!midiOutput && !testMode) {
+        logMessage('Nessun dispositivo MIDI connesso', 'error');
+        return false;
+    }
+
+    try {
+        // Formato Note On: 9nH kkH vvH
+        // 9nH = 0x90 + channel index (0-15)
+        // kkH = nota MIDI (0-127)
+        // vvH = velocità (1-127, deve essere > 0 per Note On)
+        const statusByte = 0x90 | (channelIndex & 0x0F);
+        const midiNote = noteNumber & 0x7F;
+        const midiVelocity = Math.max(1, Math.min(127, velocity)) & 0x7F;
+
+        const midiMessage = [statusByte, midiNote, midiVelocity];
+
+        if (testMode) {
+            const hexMsg = midiMessage.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+            console.log(`TestMode - Note On: ${hexMsg}`);
+            logMessage(`[TEST] Note On - Ch:${channelIndex + 1} Note:${noteNumber} Vel:${midiVelocity}`, 'info');
+            return true;
+        }
+
+        midiOutput.send(new Uint8Array(midiMessage));
+        logMessage(`Note On - Canale:${channelIndex + 1} Nota:${noteNumber} Velocità:${midiVelocity}`, 'info');
+        return true;
+    } catch (error) {
+        logMessage(`Errore nell'invio Note On: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+// Invia un messaggio MIDI Note Off (Mode 2 - Keyboard Sound Generator)
+// Usa il formato 8nH kkH vvH
+// channelIndex: 0-15 (0=Canale 1, 3=Canale 4, ecc.)
+// noteNumber: 0-127 (numero della nota MIDI)
+function sendMidiNoteOff(channelIndex, noteNumber) {
+    if (!midiOutput && !testMode) {
+        logMessage('Nessun dispositivo MIDI connesso', 'error');
+        return false;
+    }
+
+    try {
+        // Formato Note Off: 8nH kkH vvH
+        // 8nH = 0x80 + channel index (0-15)
+        // kkH = nota MIDI (0-127)
+        // vvH = velocità (ignorata dal VR-09, usiamo 64 per convenzione)
+        const statusByte = 0x80 | (channelIndex & 0x0F);
+        const midiNote = noteNumber & 0x7F;
+        const midiVelocity = 64; // Valore standard, ignorato dal VR-09
+
+        const midiMessage = [statusByte, midiNote, midiVelocity];
+
+        if (testMode) {
+            const hexMsg = midiMessage.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+            console.log(`TestMode - Note Off: ${hexMsg}`);
+            logMessage(`[TEST] Note Off - Ch:${channelIndex + 1} Nota:${noteNumber}`, 'info');
+            return true;
+        }
+
+        midiOutput.send(new Uint8Array(midiMessage));
+        logMessage(`Note Off - Canale:${channelIndex + 1} Nota:${noteNumber}`, 'info');
+        return true;
+    } catch (error) {
+        logMessage(`Errore nell'invio Note Off: ${error.message}`, 'error');
+        return false;
+    }
+}
+
 // Core logic to send all parameters (callable without UI effects)
 function sendAllParameters() {
     if (!midiOutput && !testMode) {
@@ -860,3 +934,58 @@ presetFileInput.addEventListener('change', (e) => {
     showPresetStatus('Preset caricato correttamente!');
 
 });
+
+// ===== ARPEGGIATORE MIDI =====
+// Event listener per il bottone "Invia Note Arpeggio"
+const sendArpNotesBtn = document.getElementById('send-arp-notes-btn');
+if (sendArpNotesBtn) {
+    sendArpNotesBtn.addEventListener('click', () => {
+        // Ottieni il canale MIDI selezionato
+        const channelSelect = document.getElementById('arp-midi-channel');
+        const channelIndex = parseInt(channelSelect.value);
+
+        // Raccogli le note selezionate
+        const selectedNotes = Array.from(document.querySelectorAll('.arp-note:checked')).map(cb => parseInt(cb.value));
+
+        if (selectedNotes.length === 0) {
+            logMessage('Seleziona almeno una nota per l\'arpeggiatore', 'error');
+            return;
+        }
+
+        logMessage(`Invio ${selectedNotes.length} note(s) sul Canale ${channelIndex + 1}`, 'info');
+
+        // Invia tutte le note selezionate come Note On
+        selectedNotes.forEach(noteNumber => {
+            sendMidiNoteOn(channelIndex, noteNumber, 95);
+        });
+
+        logMessage(`Note On inviate: ${selectedNotes.join(', ')}`, 'success');
+    });
+}
+
+// Event listener per il bottone "Test Note Off"
+const testNoteOffBtn = document.getElementById('test-note-off-btn');
+if (testNoteOffBtn) {
+    testNoteOffBtn.addEventListener('click', () => {
+        // Ottieni il canale MIDI selezionato
+        const channelSelect = document.getElementById('arp-midi-channel');
+        const channelIndex = parseInt(channelSelect.value);
+
+        // Raccogli le note selezionate
+        const selectedNotes = Array.from(document.querySelectorAll('.arp-note:checked')).map(cb => parseInt(cb.value));
+
+        if (selectedNotes.length === 0) {
+            logMessage('Seleziona almeno una nota per l\'arpeggiatore', 'error');
+            return;
+        }
+
+        logMessage(`Invio Note Off per ${selectedNotes.length} note(s) sul Canale ${channelIndex + 1}`, 'info');
+
+        // Invia Note Off per tutte le note
+        selectedNotes.forEach(noteNumber => {
+            sendMidiNoteOff(channelIndex, noteNumber);
+        });
+
+        logMessage(`Note Off inviate: ${selectedNotes.join(', ')}`, 'success');
+    });
+}

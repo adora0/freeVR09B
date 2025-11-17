@@ -85,6 +85,7 @@
                 <button class="tab-btn" data-tab="filter">Filtro</button>
                 <button class="tab-btn" data-tab="lfo">LFO</button>
                 <button class="tab-btn" data-tab="amp">Amp</button>
+                <button class="tab-btn" data-tab="arp">Arpeggiatore</button>
             </div>
             <div class="tab-content">
                 <!-- Oscillator Tab -->
@@ -489,6 +490,123 @@
                                 <span class="value" id="amp-pan-value">0</span>
                             </div>
                         </div>
+                    </div>
+                     <!-- Arpeggiatore Tab -->
+                    <div id="arp" class="tab-panel" style="display: none;">
+                        <div class="control-group">
+                            <h3>Parametri Arpeggiatore</h3>
+
+                            <div class="parameter">
+                                <label for="arp-midi-channel">Canale MIDI (Keyboard Sound Generator)</label>
+                                <select id="arp-midi-channel">
+                                    <option value="0">Canale 1 (Lower Part)</option>
+                                    <option value="1">Canale 2</option>
+                                    <option value="2">Canale 3</option>
+                                    <option value="3">Canale 4 (Upper Part)</option>
+                                    <option value="10">Canale 11</option>
+                                    <option value="15">Canale 16</option>
+                                </select>
+                            </div>
+
+                            <div class="parameter">
+                                <label>Note Arpeggio (seleziona le note)</label>
+                                <div class="notes-grid">
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-c3" value="36" class="arp-note">
+                                        <label for="note-c3">C3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-d3" value="38" class="arp-note">
+                                        <label for="note-d3">D3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-e3" value="40" class="arp-note">
+                                        <label for="note-e3">E3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-f3" value="41" class="arp-note">
+                                        <label for="note-f3">F3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-g3" value="43" class="arp-note">
+                                        <label for="note-g3">G3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-a3" value="45" class="arp-note">
+                                        <label for="note-a3">A3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-b3" value="47" class="arp-note">
+                                        <label for="note-b3">B3</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-c4" value="48" class="arp-note">
+                                        <label for="note-c4">C4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-d4" value="50" class="arp-note">
+                                        <label for="note-d4">D4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-e4" value="52" class="arp-note">
+                                        <label for="note-e4">E4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-f4" value="53" class="arp-note">
+                                        <label for="note-f4">F4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-g4" value="55" class="arp-note">
+                                        <label for="note-g4">G4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-a4" value="57" class="arp-note">
+                                        <label for="note-a4">A4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-b4" value="59" class="arp-note">
+                                        <label for="note-b4">B4</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-c5" value="60" class="arp-note">
+                                        <label for="note-c5">C5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-d5" value="62" class="arp-note">
+                                        <label for="note-d5">D5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-e5" value="64" class="arp-note">
+                                        <label for="note-e5">E5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-f5" value="65" class="arp-note">
+                                        <label for="note-f5">F5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-g5" value="67" class="arp-note">
+                                        <label for="note-g5">G5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-a5" value="69" class="arp-note">
+                                        <label for="note-a5">A5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-b5" value="71" class="arp-note">
+                                        <label for="note-b5">B5</label>
+                                    </div>
+                                    <div class="note-checkbox">
+                                        <input type="checkbox" id="note-c6" value="72" class="arp-note">
+                                        <label for="note-c6">C6</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="parameter">
+                                <button id="send-arp-notes-btn" class="send-btn">Test Note On</button>
+                                <button id="test-note-off-btn" class="send-btn">Test Note Off</button>
+                            </div>
+                        </div> 
                     </div>
                 </div>
             </div>

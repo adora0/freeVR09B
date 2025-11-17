@@ -624,3 +624,69 @@ input[disabled], input[disabled] + label.dest-btn {
 .preset-ok-btn:hover {
     background: #e43d48;
 }
+
+/* ===== ARPEGGIATORE MIDI STYLES ===== */
+.notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+    padding: 12px;
+    background-color: #fafafa;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.note-checkbox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.note-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+.note-checkbox label {
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    color: var(--color-text);
+}
+
+.note-checkbox input[type="checkbox"]:checked + label {
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.send-btn {
+    padding: 10px 16px;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    margin-top: 8px;
+    margin-right: 8px;
+}
+
+.send-btn:hover {
+    background-color: var(--color-primary-600);
+}
+
+.send-btn:active {
+    transform: scale(0.98);
+}
+
+.send-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
