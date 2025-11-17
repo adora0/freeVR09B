@@ -498,6 +498,25 @@
                     <div class="control-group">
                         <h3>Parametri Arpeggiatore</h3>
 
+                        <div class="parameter" style="display: flex; gap: 16px; align-items: center; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="arp-status-indicator" class="status-indicator" style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #cccccc; box-shadow: 0 0 0 2px transparent;"></span>
+                                <span id="arp-status-text" style="font-weight: 500; color: #666;">Inattivo</span>
+                            </div>
+                            <button id="arp-toggle-btn" class="arp-toggle-btn" style="padding: 8px 16px; background-color: #cc5858; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background-color 0.2s;">Attiva</button>
+                        </div>
+
+                        <div class="parameter">
+                            <label for="arp-sequence-type">Tipo di Sequenza</label>
+                            <select id="arp-sequence-type">
+                                <option value="up">UP (Ascendente)</option>
+                                <option value="down">DOWN (Discendente)</option>
+                                <option value="updown">UP/DOWN (Bidirezionale)</option>
+                                <option value="random">RANDOM (Casuale)</option>
+                                <option value="asplayed">AS PLAYED (Come Suonato)</option>
+                            </select>
+                        </div>
+
                         <div class="parameter">
                             <label for="arp-midi-channel">Canale MIDI (Keyboard Sound Generator)</label>
                             <select id="arp-midi-channel">

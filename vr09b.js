@@ -42,6 +42,11 @@ const COMMAND_ID = 0x12;
 const UPPER_ID = [0x19, 0x41];
 OSCILLATOR_ID = 0x00;
 
+// Arpeggiatore variables
+let arpeggiatorActive = false;
+let arpeggiatorSequenceType = 'up';
+let arpeggiatorPlayingNotes = new Set(); // Tiene traccia delle note attualmente in riproduzione
+
 
 // Parameters mapping
 const parameterAddresses = {
@@ -957,6 +962,10 @@ if (sendArpNotesBtn) {
         // Invia tutte le note selezionate come Note On
         selectedNotes.forEach(noteNumber => {
             sendMidiNoteOn(channelIndex, noteNumber, 95);
+            // Traccia la nota come in riproduzione se l'arpeggiatore è attivo
+            if (arpeggiatorActive) {
+                arpeggiatorPlayingNotes.add(noteNumber);
+            }
         });
 
         logMessage(`Note On inviate: ${selectedNotes.join(', ')}`, 'success');
@@ -984,8 +993,67 @@ if (testNoteOffBtn) {
         // Invia Note Off per tutte le note
         selectedNotes.forEach(noteNumber => {
             sendMidiNoteOff(channelIndex, noteNumber);
+            // Rimuove la nota dal tracciamento
+            arpeggiatorPlayingNotes.delete(noteNumber);
         });
 
         logMessage(`Note Off inviate: ${selectedNotes.join(', ')}`, 'success');
     });
 }
+
+// ===== ARPEGGIATORE CONTROL LISTENERS =====
+function updateArpeggiatorStatus() {
+    const indicator = document.getElementById('arp-status-indicator');
+    const statusText = document.getElementById('arp-status-text');
+    const toggleBtn = document.getElementById('arp-toggle-btn');
+
+    if (arpeggiatorActive) {
+        indicator.classList.remove('inactive');
+        indicator.classList.add('active');
+        statusText.textContent = 'Attivo';
+        statusText.style.color = '#28a745';
+        toggleBtn.textContent = 'Disattiva';
+        toggleBtn.classList.add('active');
+    } else {
+        indicator.classList.remove('active');
+        indicator.classList.add('inactive');
+        statusText.textContent = 'Inattivo';
+        statusText.style.color = '#666';
+        toggleBtn.textContent = 'Attiva';
+        toggleBtn.classList.remove('active');
+    }
+}
+
+// Event listener per il bottone di toggle arpeggiatore
+const arpToggleBtn = document.getElementById('arp-toggle-btn');
+if (arpToggleBtn) {
+    arpToggleBtn.addEventListener('click', () => {
+        arpeggiatorActive = !arpeggiatorActive;
+        updateArpeggiatorStatus();
+
+        if (arpeggiatorActive) {
+            logMessage('✓ Arpeggiatore ATTIVATO', 'success');
+        } else {
+            logMessage('✗ Arpeggiatore DISATTIVATO', 'info');
+            // Invia Note Off per tutte le note che erano in riproduzione
+            if (arpeggiatorPlayingNotes.size > 0) {
+                const channelSelect = document.getElementById('arp-midi-channel');
+                const channelIndex = parseInt(channelSelect.value);
+                arpeggiatorPlayingNotes.forEach(noteNumber => {
+                    sendMidiNoteOff(channelIndex, noteNumber);
+                });
+                arpeggiatorPlayingNotes.clear();
+            }
+        }
+    });
+}
+
+// Event listener per il select del tipo di sequenza
+const arpSequenceTypeSelect = document.getElementById('arp-sequence-type');
+if (arpSequenceTypeSelect) {
+    arpSequenceTypeSelect.addEventListener('change', (e) => {
+        arpeggiatorSequenceType = e.target.value;
+        logMessage(`Tipo di sequenza: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+    });
+}
+
