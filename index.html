@@ -507,6 +507,14 @@
                         </div>
 
                         <div class="parameter">
+                            <label for="arp-mode">Modalità</label>
+                            <select id="arp-mode">
+                                <option value="chord">Accordo (Tutte le note insieme)</option>
+                                <option value="arpeggio">Arpeggiatore (Sequenza)</option>
+                            </select>
+                        </div>
+
+                        <div class="parameter">
                             <label for="arp-sequence-type">Tipo di Sequenza</label>
                             <select id="arp-sequence-type">
                                 <option value="up">UP (Ascendente)</option>
@@ -515,6 +523,14 @@
                                 <option value="random">RANDOM (Casuale)</option>
                                 <option value="asplayed">AS PLAYED (Come Suonato)</option>
                             </select>
+                        </div>
+
+                        <div class="parameter">
+                            <label for="arp-rate">Rate (0-127)</label>
+                            <div class="slider-container">
+                                <input type="range" id="arp-rate" min="0" max="127" value="64">
+                                <span class="value" id="arp-rate-value">64</span>
+                            </div>
                         </div>
 
                         <div class="parameter">
@@ -530,15 +546,23 @@
                         </div>
 
                         <div class="parameter">
-                            <label>Note Arpeggio (seleziona le note)</label>
+                            <label>Note (seleziona le note della scala)</label>
                             <div class="notes-grid">
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-c3" value="36" class="arp-note">
                                     <label for="note-c3">C3</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-cs3" value="37" class="arp-note">
+                                    <label for="note-cs3">C#3</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-d3" value="38" class="arp-note">
                                     <label for="note-d3">D3</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-ds3" value="39" class="arp-note">
+                                    <label for="note-ds3">D#3</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-e3" value="40" class="arp-note">
@@ -549,12 +573,24 @@
                                     <label for="note-f3">F3</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-fs3" value="42" class="arp-note">
+                                    <label for="note-fs3">F#3</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-g3" value="43" class="arp-note">
                                     <label for="note-g3">G3</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-gs3" value="44" class="arp-note">
+                                    <label for="note-gs3">G#3</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-a3" value="45" class="arp-note">
                                     <label for="note-a3">A3</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-as3" value="46" class="arp-note">
+                                    <label for="note-as3">A#3</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-b3" value="47" class="arp-note">
@@ -565,8 +601,16 @@
                                     <label for="note-c4">C4</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-cs4" value="49" class="arp-note">
+                                    <label for="note-cs4">C#4</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-d4" value="50" class="arp-note">
                                     <label for="note-d4">D4</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-ds4" value="51" class="arp-note">
+                                    <label for="note-ds4">D#4</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-e4" value="52" class="arp-note">
@@ -577,12 +621,24 @@
                                     <label for="note-f4">F4</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-fs4" value="54" class="arp-note">
+                                    <label for="note-fs4">F#4</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-g4" value="55" class="arp-note">
                                     <label for="note-g4">G4</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-gs4" value="56" class="arp-note">
+                                    <label for="note-gs4">G#4</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-a4" value="57" class="arp-note">
                                     <label for="note-a4">A4</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-as4" value="58" class="arp-note">
+                                    <label for="note-as4">A#4</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-b4" value="59" class="arp-note">
@@ -593,8 +649,16 @@
                                     <label for="note-c5">C5</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-cs5" value="61" class="arp-note">
+                                    <label for="note-cs5">C#5</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-d5" value="62" class="arp-note">
                                     <label for="note-d5">D5</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-ds5" value="63" class="arp-note">
+                                    <label for="note-ds5">D#5</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-e5" value="64" class="arp-note">
@@ -605,12 +669,24 @@
                                     <label for="note-f5">F5</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-fs5" value="66" class="arp-note">
+                                    <label for="note-fs5">F#5</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-g5" value="67" class="arp-note">
                                     <label for="note-g5">G5</label>
                                 </div>
                                 <div class="note-checkbox">
+                                    <input type="checkbox" id="note-gs5" value="68" class="arp-note">
+                                    <label for="note-gs5">G#5</label>
+                                </div>
+                                <div class="note-checkbox">
                                     <input type="checkbox" id="note-a5" value="69" class="arp-note">
                                     <label for="note-a5">A5</label>
+                                </div>
+                                <div class="note-checkbox">
+                                    <input type="checkbox" id="note-as5" value="70" class="arp-note">
+                                    <label for="note-as5">A#5</label>
                                 </div>
                                 <div class="note-checkbox">
                                     <input type="checkbox" id="note-b5" value="71" class="arp-note">
@@ -624,8 +700,9 @@
                         </div>
 
                         <div class="parameter">
-                            <button id="send-arp-notes-btn" class="send-btn">Test Note On</button>
-                            <button id="test-note-off-btn" class="send-btn">Test Note Off</button>
+                            <button id="send-arp-notes-btn" class="send-btn">Invia Note (Accordo)</button>
+                            <button id="start-arpeggio-btn" class="send-btn">Invia Arpeggio (Sequenza)</button>
+                            <button id="stop-arpeggio-btn" class="send-btn">Stop (Note Off)</button>
                         </div>
                     </div>
                 
