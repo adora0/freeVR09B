@@ -31,7 +31,7 @@ rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
-let testMode = false; // Flag per abilitare la modalità test
+let testMode = true; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
 let midiOutput = null;
@@ -800,8 +800,7 @@ function saveCurrentPreset() {
     // Memorizzo l'array dati con i parametri correnti per ciascun oscillatore
     /* saveCurrentOscParams('1');
      saveCurrentOscParams('2');
-     saveCurrentOscParams('3');*/
-    console.log('Preset salvato:', oscillatorParams);
+     saveCurrentOscParams('3');*/    
     const blob = new Blob([JSON.stringify(oscillatorParams, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1010,13 +1009,19 @@ function stopArpeggiator() {
     const channelSelect = document.getElementById('arp-midi-channel');
     const channelIndex = parseInt(channelSelect.value);
     
-    arpeggiatorPlayingNotes.forEach(noteNumber => {
-        sendMidiNoteOff(channelIndex, noteNumber);
-    });
+    if (arpeggiatorPlayingNotes.size > 0) {
+        const notesToStop = Array.from(arpeggiatorPlayingNotes);
+        logMessage(`Invio Note Off per ${notesToStop.length} note: ${notesToStop.join(', ')}`, 'info');
+        
+        notesToStop.forEach(noteNumber => {
+            const noteNum = parseInt(noteNumber, 10);
+            sendMidiNoteOff(channelIndex, noteNum);
+        });
+    }
     
     arpeggiatorPlayingNotes.clear();
     arpeggiatorIndex = 0;
-    logMessage('Arpeggiatore fermato - Tutte le note arrestate', 'info');
+    logMessage('✓ Arpeggiatore fermato - Tutte le note arrestate', 'success');
 }
 
 // Funzione per calcolare il ritardo basato sul rate (0-127)
@@ -1030,7 +1035,9 @@ function calculateArpeggiatorDelay(rate) {
 
 // Funzione per ordinare le note in base al tipo di sequenza
 function getOrderedNotes(selectedNotes, sequenceType) {
-    const sorted = Array.from(selectedNotes).map(v => parseInt(v)).sort((a, b) => a - b);
+    // Converte sempre a numeri interi
+    const notesArray = Array.from(selectedNotes).map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    const sorted = notesArray.sort((a, b) => a - b);
     
     switch(sequenceType) {
         case 'down':
@@ -1054,7 +1061,7 @@ function startArpeggiator(selectedNotes) {
         return;
     }
 
-    if (selectedNotes.length === 0) {
+    if (!selectedNotes || selectedNotes.length === 0) {
         logMessage('Seleziona almeno una nota per l\'arpeggiatore', 'error');
         return;
     }
@@ -1069,11 +1076,13 @@ function startArpeggiator(selectedNotes) {
     const orderedNotes = getOrderedNotes(selectedNotes, arpeggiatorSequenceType);
     const delay = calculateArpeggiatorDelay(arpeggiatorRate);
 
-    logMessage(`Arpeggiatore avviato - Rate: ${arpeggiatorRate}, Delay: ${delay}ms, Note: ${orderedNotes.length}`, 'info');
+    logMessage(`Arpeggiatore avviato - Rate: ${arpeggiatorRate}, Delay: ${delay}ms, Note: ${orderedNotes.length}, Sequenza: ${arpeggiatorSequenceType}`, 'success');
 
     arpeggiatorIndex = 0;
-    arpeggiatorInterval = setInterval(() => {
-        // Invia Note Off per la nota precedente
+    
+    // Funzione per riprodurre la nota corrente
+    const playCurrentNote = () => {
+        // Invia Note Off per la nota precedente se esiste
         if (arpeggiatorPlayingNotes.size > 0) {
             const previousNote = Array.from(arpeggiatorPlayingNotes)[0];
             sendMidiNoteOff(channelIndex, previousNote);
@@ -1084,9 +1093,17 @@ function startArpeggiator(selectedNotes) {
         const currentNote = orderedNotes[arpeggiatorIndex];
         sendMidiNoteOn(channelIndex, currentNote, 95);
         arpeggiatorPlayingNotes.add(currentNote);
+        
+        logMessage(`Arpeggiatore - Nota ${currentNote} (${arpeggiatorIndex + 1}/${orderedNotes.length})`, 'info');
 
         arpeggiatorIndex = (arpeggiatorIndex + 1) % orderedNotes.length;
-    }, delay);
+    };
+
+    // Suona la prima nota immediatamente
+    playCurrentNote();
+    
+    // Poi continua con l'intervallo
+    arpeggiatorInterval = setInterval(playCurrentNote, delay);
 }
 
 function updateArpeggiatorStatus() {
