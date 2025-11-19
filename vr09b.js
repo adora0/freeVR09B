@@ -31,7 +31,7 @@ rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
-let testMode = true; // Flag per abilitare la modalità test
+let testMode = false; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
 let midiOutput = null;
