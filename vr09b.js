@@ -323,6 +323,18 @@ function sendParameterValue(paramId, value, oscIdOverride) {
     }
 }
 
+    // Calcola il delay (ms) dell'arpeggiatore a partire dal valore `rate` (0-127)
+    // Mappa il valore rate su un intervallo BPM (minBpm..maxBpm) e ritorna i millisecondi per battito
+    function calculateArpeggiatorDelay(rate) {
+        const r = Number(rate) || 0;
+        const minBpm = 30;   // BPM minimo
+        const maxBpm = 300;  // BPM massimo
+        const clamped = Math.max(0, Math.min(127, r));
+        const bpm = Math.round(minBpm + (clamped / 127) * (maxBpm - minBpm));
+        const delayMs = Math.round(60000 / bpm);
+        // Impediamo valori troppo bassi
+        return Math.max(20, delayMs);
+    }
 // accende o spegne l'oscilallatore
 function setOscOn(osc, status) {
 
