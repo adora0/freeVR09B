@@ -1164,3 +1164,30 @@ if (arpRateSlider) {
     });
 }
 
+// ===== PIANO KEYBOARD INTERACTION =====
+document.querySelectorAll('.piano-key').forEach(key => {
+    key.addEventListener('click', () => {
+        const noteValue = key.getAttribute('data-note');
+        const noteName = key.getAttribute('data-name');
+        
+        // Toggle checkbox corrispondente (se esiste nel vecchio sistema)
+        // Oppure toggle la classe selected direttamente sul tasto
+        key.classList.toggle('selected');
+        
+        // Crea un input hidden se necessario per compatibilità
+        let hiddenInput = document.getElementById(`hidden-note-${noteValue}`);
+        if (!hiddenInput && key.classList.contains('selected')) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.id = `hidden-note-${noteValue}`;
+            hiddenInput.type = 'hidden';
+            hiddenInput.value = noteValue;
+            hiddenInput.className = 'arp-note';
+            document.body.appendChild(hiddenInput);
+        } else if (hiddenInput && !key.classList.contains('selected')) {
+            hiddenInput.remove();
+        }
+        
+        logMessage(`Nota ${noteName} (${noteValue}) ${key.classList.contains('selected') ? 'selezionata' : 'deselezionata'}`, 'info');
+    });
+});
+
