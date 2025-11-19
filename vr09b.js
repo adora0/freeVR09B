@@ -670,6 +670,16 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Header menu bindings
+    // Verifica che gli elementi del menu esistono
+    console.log('Menu Elements Check:');
+    console.log('openMenuBtn:', openMenuBtn);
+    console.log('menuDropdown:', menuDropdown);
+    console.log('menuConnect:', menuConnect);
+    console.log('menuReset:', menuReset);
+    console.log('menuSendAll:', menuSendAll);
+    console.log('menuPresets:', menuPresets);
+    console.log('menuLogs:', menuLogs);
+
     if (openMenuBtn && menuDropdown) {
         const closeMenu = () => {
             menuDropdown.hidden = true;
@@ -693,6 +703,8 @@ window.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !menuDropdown.hidden) close();
         });
+    } else {
+        console.warn('Menu elements not found - check HTML IDs');
     }
     if (menuConnect) menuConnect.addEventListener('click', () => connectBtn.click());
     if (menuReset) menuReset.addEventListener('click', () => resetAllToDefaults());
@@ -965,30 +977,15 @@ let arpeggiatorRunning = false;     // true se la sequenza/accordo è in esecuzi
 
 // helper: ottieni note selezionate e converti a numeri (una sola volta)
 function collectSelectedNoteNumbers() {
-    const checked = Array.from(document.querySelectorAll('.arp-note:checked'));
-    return checked.map(cb => parseInt(cb.value, 10)).filter(n => !isNaN(n));
-}
-
-// override leggero di getOrderedNotes: accetta già array numerico oppure array stringhe
-function getOrderedNotes(selectedNotes, sequenceType) {
-    const notesArray = Array.isArray(selectedNotes) ?
-        selectedNotes.map(v => parseInt(v, 10)).filter(n => !isNaN(n)) :
-        Array.from(selectedNotes).map(v => parseInt(v, 10)).filter(n => !isNaN(n));
-    const sorted = notesArray.slice().sort((a, b) => a - b);
-
-    switch(sequenceType) {
-        case 'down':
-            return sorted.slice().reverse();
-        case 'updown':
-            return [...sorted, ...sorted.slice().reverse()];
-        case 'random':
-            return sorted.slice().sort(() => Math.random() - 0.5);
-        case 'asplayed':
-            return notesArray; // mantiene ordine della selezione
-        case 'up':
-        default:
-            return sorted;
-    }
+    // Raccogli sia dai checkbox che dagli input hidden creati dalla tastiera
+    const checkedCheckboxes = Array.from(document.querySelectorAll('input[type="checkbox"].arp-note:checked'));
+    const checkedFromKeyboard = Array.from(document.querySelectorAll('input[type="hidden"].arp-note'));
+    
+    const fromCheckboxes = checkedCheckboxes.map(cb => parseInt(cb.value, 10)).filter(n => !isNaN(n));
+    const fromKeyboard = checkedFromKeyboard.map(inp => parseInt(inp.value, 10)).filter(n => !isNaN(n));
+    
+    // Combina e rimuovi duplicati
+    return Array.from(new Set([...fromCheckboxes, ...fromKeyboard]));
 }
 
 // startArpeggiator ora usa arpeggiatorCurrentNotes e arpeggiatorPrevNote
@@ -1195,24 +1192,30 @@ document.querySelectorAll('.piano-key').forEach(key => {
         const noteValue = key.getAttribute('data-note');
         const noteName = key.getAttribute('data-name');
         
-        // Toggle checkbox corrispondente (se esiste nel vecchio sistema)
-        // Oppure toggle la classe selected direttamente sul tasto
+        // Toggle la classe selected sul tasto visualmente
         key.classList.toggle('selected');
         
-        // Crea un input hidden se necessario per compatibilità
+        // Crea o rimuovi input hidden per tracciamento
         let hiddenInput = document.getElementById(`hidden-note-${noteValue}`);
-        if (!hiddenInput && key.classList.contains('selected')) {
-            hiddenInput = document.createElement('input');
-            hiddenInput.id = `hidden-note-${noteValue}`;
-            hiddenInput.type = 'hidden';
-            hiddenInput.value = noteValue;
-            hiddenInput.className = 'arp-note';
-            document.body.appendChild(hiddenInput);
-        } else if (hiddenInput && !key.classList.contains('selected')) {
-            hiddenInput.remove();
-        }
         
-        logMessage(`Nota ${noteName} (${noteValue}) ${key.classList.contains('selected') ? 'selezionata' : 'deselezionata'}`, 'info');
+        if (key.classList.contains('selected')) {
+            // La nota è stata selezionata
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.id = `hidden-note-${noteValue}`;
+                hiddenInput.type = 'hidden';
+                hiddenInput.value = noteValue;
+                hiddenInput.className = 'arp-note';
+                document.body.appendChild(hiddenInput);
+            }
+            logMessage(`Nota ${noteName} (${noteValue}) selezionata`, 'info');
+        } else {
+            // La nota è stata deselezionata
+            if (hiddenInput) {
+                hiddenInput.remove();
+            }
+            logMessage(`Nota ${noteName} (${noteValue}) deselezionata`, 'info');
+        }
     });
 });
 
