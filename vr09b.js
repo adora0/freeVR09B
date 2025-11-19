@@ -1085,6 +1085,31 @@ function stopArpeggiator() {
     logMessage('✓ Arpeggiatore fermato - Tutte le note arrestate', 'success');
 }
 
+// Aggiorna lo stato visuale dell'arpeggiatore (LED e bottone toggle)
+function updateArpeggiatorStatus() {
+    if (!arpStatusIndicator || !arpStatusText) return;
+
+    if (arpeggiatorActive) {
+        // Attivato
+        arpStatusIndicator.classList.remove('inactive');
+        arpStatusIndicator.classList.add('active');
+        arpStatusText.textContent = 'Attivo';
+        if (arpToggleBtnCached) {
+            arpToggleBtnCached.classList.add('active');
+            arpToggleBtnCached.textContent = 'Disattiva';
+        }
+    } else {
+        // Disattivato
+        arpStatusIndicator.classList.remove('active');
+        arpStatusIndicator.classList.add('inactive');
+        arpStatusText.textContent = 'Inattivo';
+        if (arpToggleBtnCached) {
+            arpToggleBtnCached.classList.remove('active');
+            arpToggleBtnCached.textContent = 'Attiva';
+        }
+    }
+}
+
 // Unico pulsante di esecuzione: decide in base a arpeggiatorMode
 if (arpExecuteBtn) {
     arpExecuteBtn.addEventListener('click', () => {
