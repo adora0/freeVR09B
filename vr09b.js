@@ -943,235 +943,224 @@ presetFileInput.addEventListener('change', (e) => {
 
 });
 
-// ===== ARPEGGIATORE MIDI =====
-// Event listener per il bottone "Invia Note (Accordo)"
-const sendArpNotesBtn = document.getElementById('send-arp-notes-btn');
-if (sendArpNotesBtn) {
-    sendArpNotesBtn.addEventListener('click', () => {
-        // Ottieni il canale MIDI selezionato
-        const channelSelect = document.getElementById('arp-midi-channel');
-        const channelIndex = parseInt(channelSelect.value);
+// ===== ARPEGGIATORE MIDI (ottimizzato) =====
+// Cache DOM elementi usati dall'arpeggiatore
+const arpChannelSelect = document.getElementById('arp-midi-channel');
+const arpModeSelect = document.getElementById('arp-mode');
+const arpSequenceTypeSelect = document.getElementById('arp-sequence-type');
+const arpRateSlider = document.getElementById('arp-rate');
+const arpRateValueEl = document.getElementById('arp-rate-value');
+const arpToggleBtnCached = document.getElementById('arp-toggle-btn');
+const arpStatusIndicator = document.getElementById('arp-status-indicator');
+const arpStatusText = document.getElementById('arp-status-text');
+// single execute button: prefer new id 'arp-execute-btn', altrimenti usa start/send esistenti
+const arpExecuteBtn = document.getElementById('arp-execute-btn') || document.getElementById('start-arpeggio-btn') || document.getElementById('send-arp-notes-btn');
+// optional explicit stop button (kept for compatibility)
+const arpStopBtn = document.getElementById('stop-arpeggio-btn');
 
-        // Raccogli le note selezionate
-        const selectedNotes = Array.from(document.querySelectorAll('.arp-note:checked')).map(cb => cb.value);
+// stato locali per l'esecuzione
+let arpeggiatorCurrentNotes = [];   // array numerico ordinato delle note correnti
+let arpeggiatorPrevNote = null;     // nota attualmente suonata (per arpeggio)
+let arpeggiatorRunning = false;     // true se la sequenza/accordo è in esecuzione
 
-        if (selectedNotes.length === 0) {
-            logMessage('Seleziona almeno una nota', 'error');
-            return;
-        }
-
-        logMessage(`Invio ${selectedNotes.length} note come ACCORDO sul Canale ${channelIndex + 1}`, 'info');
-
-        // Invia tutte le note selezionate come Note On (accordo)
-        selectedNotes.forEach(noteValue => {
-            const noteNumber = parseInt(noteValue);
-            sendMidiNoteOn(channelIndex, noteNumber, 95);
-            arpeggiatorPlayingNotes.add(noteNumber);
-        });
-
-        logMessage(`Note On inviate: ${selectedNotes.join(', ')}`, 'success');
-    });
+// helper: ottieni note selezionate e converti a numeri (una sola volta)
+function collectSelectedNoteNumbers() {
+    const checked = Array.from(document.querySelectorAll('.arp-note:checked'));
+    return checked.map(cb => parseInt(cb.value, 10)).filter(n => !isNaN(n));
 }
 
-// Event listener per il bottone "Invia Arpeggio (Sequenza)"
-const startArpeggioBtn = document.getElementById('start-arpeggio-btn');
-if (startArpeggioBtn) {
-    startArpeggioBtn.addEventListener('click', () => {
-        const selectedNotes = Array.from(document.querySelectorAll('.arp-note:checked')).map(cb => cb.value);
-
-        if (selectedNotes.length === 0) {
-            logMessage('Seleziona almeno una nota per l\'arpeggiatore', 'error');
-            return;
-        }
-
-        startArpeggiator(selectedNotes);
-    });
-}
-
-// Event listener per il bottone "Stop (Note Off)"
-const stopArpeggioBtn = document.getElementById('stop-arpeggio-btn');
-if (stopArpeggioBtn) {
-    stopArpeggioBtn.addEventListener('click', () => {
-        stopArpeggiator();
-    });
-}
-
-// ===== ARPEGGIATORE CONTROL FUNCTIONS =====
-// Funzione per fermare l'arpeggiatore e pulire tutte le note
-function stopArpeggiator() {
-    // Stop dell'intervallo
-    if (arpeggiatorInterval) {
-        clearInterval(arpeggiatorInterval);
-        arpeggiatorInterval = null;
-    }
-
-    // Invia Note Off per tutte le note in riproduzione
-    const channelSelect = document.getElementById('arp-midi-channel');
-    const channelIndex = parseInt(channelSelect.value);
-    
-    if (arpeggiatorPlayingNotes.size > 0) {
-        const notesToStop = Array.from(arpeggiatorPlayingNotes);
-        logMessage(`Invio Note Off per ${notesToStop.length} note: ${notesToStop.join(', ')}`, 'info');
-        
-        notesToStop.forEach(noteNumber => {
-            const noteNum = parseInt(noteNumber, 10);
-            sendMidiNoteOff(channelIndex, noteNum);
-        });
-    }
-    
-    arpeggiatorPlayingNotes.clear();
-    arpeggiatorIndex = 0;
-    logMessage('✓ Arpeggiatore fermato - Tutte le note arrestate', 'success');
-}
-
-// Funzione per calcolare il ritardo basato sul rate (0-127)
-function calculateArpeggiatorDelay(rate) {
-    // Rate 0 = 1000ms (lento), Rate 127 = 50ms (veloce)
-    const minDelay = 50;
-    const maxDelay = 1000;
-    const delay = maxDelay - (rate / 127) * (maxDelay - minDelay);
-    return Math.round(delay);
-}
-
-// Funzione per ordinare le note in base al tipo di sequenza
+// override leggero di getOrderedNotes: accetta già array numerico oppure array stringhe
 function getOrderedNotes(selectedNotes, sequenceType) {
-    // Converte sempre a numeri interi
-    const notesArray = Array.from(selectedNotes).map(v => parseInt(v, 10)).filter(n => !isNaN(n));
-    const sorted = notesArray.sort((a, b) => a - b);
-    
+    const notesArray = Array.isArray(selectedNotes) ?
+        selectedNotes.map(v => parseInt(v, 10)).filter(n => !isNaN(n)) :
+        Array.from(selectedNotes).map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    const sorted = notesArray.slice().sort((a, b) => a - b);
+
     switch(sequenceType) {
         case 'down':
-            return sorted.reverse();
+            return sorted.slice().reverse();
         case 'updown':
             return [...sorted, ...sorted.slice().reverse()];
         case 'random':
-            return sorted.sort(() => Math.random() - 0.5);
+            return sorted.slice().sort(() => Math.random() - 0.5);
         case 'asplayed':
-            return sorted; // Come selezionate
+            return notesArray; // mantiene ordine della selezione
         case 'up':
         default:
             return sorted;
     }
 }
 
-// Funzione per avviare l'arpeggiatore
-function startArpeggiator(selectedNotes) {
+// startArpeggiator ora usa arpeggiatorCurrentNotes e arpeggiatorPrevNote
+function startArpeggiator(orderedNotes) {
+    if (!orderedNotes || !orderedNotes.length) {
+        logMessage('Nessuna nota da riprodurre', 'error');
+        return;
+    }
+
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return;
     }
 
-    if (!selectedNotes || selectedNotes.length === 0) {
-        logMessage('Seleziona almeno una nota per l\'arpeggiatore', 'error');
+    // Assicura che l'arpeggiatore sia attivato (toggle)
+    if (!arpeggiatorActive) {
+        logMessage('Attiva l\'arpeggiatore prima di avviare', 'error');
         return;
     }
 
-    // Ferma se già in esecuzione
-    if (arpeggiatorInterval) {
-        stopArpeggiator();
-    }
+    // Ferma eventuale precedente esecuzione
+    stopArpeggiator();
 
-    const channelSelect = document.getElementById('arp-midi-channel');
-    const channelIndex = parseInt(channelSelect.value);
-    const orderedNotes = getOrderedNotes(selectedNotes, arpeggiatorSequenceType);
+    const channelIndex = arpChannelSelect ? parseInt(arpChannelSelect.value, 10) : 0;
+    arpeggiatorCurrentNotes = orderedNotes.slice();
+    arpeggiatorIndex = 0;
+    arpeggiatorPrevNote = null;
+    arpeggiatorRunning = true;
+
     const delay = calculateArpeggiatorDelay(arpeggiatorRate);
 
-    logMessage(`Arpeggiatore avviato - Rate: ${arpeggiatorRate}, Delay: ${delay}ms, Note: ${orderedNotes.length}, Sequenza: ${arpeggiatorSequenceType}`, 'success');
+    logMessage(`Arpeggiatore avviato - Rate:${arpeggiatorRate} Delay:${delay}ms Note:${arpeggiatorCurrentNotes.length} Sequenza:${arpeggiatorSequenceType}`, 'success');
 
-    arpeggiatorIndex = 0;
-    
-    // Funzione per riprodurre la nota corrente
-    const playCurrentNote = () => {
-        // Invia Note Off per la nota precedente se esiste
-        if (arpeggiatorPlayingNotes.size > 0) {
-            const previousNote = Array.from(arpeggiatorPlayingNotes)[0];
-            sendMidiNoteOff(channelIndex, previousNote);
-            arpeggiatorPlayingNotes.delete(previousNote);
+    // funzione che suona la nota corrente e silenzia la precedente
+    const playStep = () => {
+        if (!arpeggiatorRunning || !arpeggiatorCurrentNotes.length) return;
+
+        const currentNote = arpeggiatorCurrentNotes[arpeggiatorIndex];
+
+        // Note Off della precedente (se esiste)
+        if (arpeggiatorPrevNote !== null) {
+            sendMidiNoteOff(channelIndex, arpeggiatorPrevNote);
+            // rimuove dalla tracking set (se presente)
+            arpeggiatorPlayingNotes.delete(arpeggiatorPrevNote);
         }
 
-        // Invia Note On per la nota corrente
-        const currentNote = orderedNotes[arpeggiatorIndex];
+        // Note On della corrente
         sendMidiNoteOn(channelIndex, currentNote, 95);
         arpeggiatorPlayingNotes.add(currentNote);
-        
-        logMessage(`Arpeggiatore - Nota ${currentNote} (${arpeggiatorIndex + 1}/${orderedNotes.length})`, 'info');
+        arpeggiatorPrevNote = currentNote;
 
-        arpeggiatorIndex = (arpeggiatorIndex + 1) % orderedNotes.length;
+        logMessage(`Arpeggio - Nota ${currentNote} (${arpeggiatorIndex+1}/${arpeggiatorCurrentNotes.length})`, 'info');
+
+        arpeggiatorIndex = (arpeggiatorIndex + 1) % arpeggiatorCurrentNotes.length;
     };
 
-    // Suona la prima nota immediatamente
-    playCurrentNote();
-    
-    // Poi continua con l'intervallo
-    arpeggiatorInterval = setInterval(playCurrentNote, delay);
+    // suona subito primo step
+    playStep();
+
+    // avvia intervallo e salva id
+    arpeggiatorInterval = setInterval(playStep, delay);
 }
 
-function updateArpeggiatorStatus() {
-    const indicator = document.getElementById('arp-status-indicator');
-    const statusText = document.getElementById('arp-status-text');
-    const toggleBtn = document.getElementById('arp-toggle-btn');
-
-    if (arpeggiatorActive) {
-        indicator.classList.remove('inactive');
-        indicator.classList.add('active');
-        statusText.textContent = 'Attivo';
-        statusText.style.color = '#28a745';
-        toggleBtn.textContent = 'Disattiva';
-        toggleBtn.classList.add('active');
-    } else {
-        indicator.classList.remove('active');
-        indicator.classList.add('inactive');
-        statusText.textContent = 'Inattivo';
-        statusText.style.color = '#666';
-        toggleBtn.textContent = 'Attiva';
-        toggleBtn.classList.remove('active');
+// stopArpeggiator inviando NoteOff robusti e pulendo stato
+function stopArpeggiator() {
+    // ferma timer
+    if (arpeggiatorInterval) {
+        clearInterval(arpeggiatorInterval);
+        arpeggiatorInterval = null;
     }
+
+    const channelIndex = arpChannelSelect ? parseInt(arpChannelSelect.value, 10) : 0;
+
+    // invia Note Off per la nota precedente (se presente)
+    if (arpeggiatorPrevNote !== null) {
+        sendMidiNoteOff(channelIndex, arpeggiatorPrevNote);
+        arpeggiatorPrevNote = null;
+    }
+
+    // invia Note Off per tutte le note tracciate (accordi o residui)
+    if (arpeggiatorPlayingNotes.size > 0) {
+        const notesToStop = Array.from(arpeggiatorPlayingNotes);
+        notesToStop.forEach(n => {
+            const noteNum = parseInt(n, 10);
+            if (!isNaN(noteNum)) sendMidiNoteOff(channelIndex, noteNum);
+        });
+    }
+
+    arpeggiatorPlayingNotes.clear();
+    arpeggiatorCurrentNotes = [];
+    arpeggiatorIndex = 0;
+    arpeggiatorRunning = false;
+
+    logMessage('✓ Arpeggiatore fermato - Tutte le note arrestate', 'success');
 }
 
-// Event listener per il bottone di toggle arpeggiatore
-const arpToggleBtn = document.getElementById('arp-toggle-btn');
-if (arpToggleBtn) {
-    arpToggleBtn.addEventListener('click', () => {
-        arpeggiatorActive = !arpeggiatorActive;
-        updateArpeggiatorStatus();
+// Unico pulsante di esecuzione: decide in base a arpeggiatorMode
+if (arpExecuteBtn) {
+    arpExecuteBtn.addEventListener('click', () => {
+        // richiedi che arpeggiatore sia attivato
+        if (!arpeggiatorActive) {
+            logMessage('Attiva l\'arpeggiatore prima di eseguire', 'error');
+            return;
+        }
 
-        if (arpeggiatorActive) {
-            logMessage('✓ Arpeggiatore ATTIVATO', 'success');
+        const notes = collectSelectedNoteNumbers();
+        if (!notes.length) {
+            logMessage('Seleziona almeno una nota', 'error');
+            return;
+        }
+
+        const channelIndex = arpChannelSelect ? parseInt(arpChannelSelect.value, 10) : 0;
+
+        if (arpeggiatorMode === 'chord') {
+            // Invia accordo: tutte le note Note On insieme
+            notes.forEach(n => {
+                sendMidiNoteOn(channelIndex, n, 95);
+                arpeggiatorPlayingNotes.add(n);
+            });
+            arpeggiatorRunning = true;
+            logMessage(`Accordo inviato - Canale:${channelIndex+1} Note:${notes.join(', ')}`, 'success');
         } else {
-            logMessage('✗ Arpeggiatore DISATTIVATO', 'info');
-            stopArpeggiator();
+            // Modalità arpeggio: ordina in base al tipo di sequenza e avvia il player
+            const ordered = getOrderedNotes(notes, arpeggiatorSequenceType);
+            startArpeggiator(ordered);
         }
     });
 }
 
-// Event listener per il select della modalità
-const arpModeSelect = document.getElementById('arp-mode');
+// stop button (compatibilità) -> chiama stopArpeggiator
+if (arpStopBtn) {
+    arpStopBtn.addEventListener('click', () => {
+        stopArpeggiator();
+    });
+}
+
+// toggle già presente: assicurati che updateArpeggiatorStatus venga chiamata (cached toggle btn)
+if (arpToggleBtnCached) {
+    arpToggleBtnCached.addEventListener('click', () => {
+        arpeggiatorActive = !arpeggiatorActive;
+        updateArpeggiatorStatus();
+        if (!arpeggiatorActive) stopArpeggiator();
+    });
+}
+
+// gestione sequenza/rate/modo: aggiornano le variabili globali
 if (arpModeSelect) {
     arpModeSelect.addEventListener('change', (e) => {
         arpeggiatorMode = e.target.value;
-        logMessage(`Modalità: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+        logMessage(`Modalità arpeggiatore: ${arpeggiatorMode}`, 'info');
     });
 }
-
-// Event listener per il select del tipo di sequenza
-const arpSequenceTypeSelect = document.getElementById('arp-sequence-type');
 if (arpSequenceTypeSelect) {
     arpSequenceTypeSelect.addEventListener('change', (e) => {
         arpeggiatorSequenceType = e.target.value;
-        logMessage(`Tipo di sequenza: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+        logMessage(`Tipo di sequenza: ${arpeggiatorSequenceType}`, 'info');
     });
 }
-
-// Event listener per il Rate slider
-const arpRateSlider = document.getElementById('arp-rate');
 if (arpRateSlider) {
-    const valueEl = document.getElementById('arp-rate-value');
     arpRateSlider.addEventListener('input', (e) => {
-        arpeggiatorRate = parseInt(e.target.value);
-        if (valueEl) {
-            valueEl.textContent = arpeggiatorRate;
-        }
+        arpeggiatorRate = parseInt(e.target.value, 10);
+        if (arpRateValueEl) arpRateValueEl.textContent = arpeggiatorRate;
         logMessage(`Rate arpeggiatore: ${arpeggiatorRate}`, 'info');
+
+        // se l'arpeggiatore è in esecuzione e non in modalità chord, riavvia l'intervallo con nuovo delay
+        if (arpeggiatorRunning && arpeggiatorMode !== 'chord' && arpeggiatorCurrentNotes.length) {
+            // riavvia startArpeggiator usando le note attuali (conserva posizione)
+            const savedIndex = arpeggiatorIndex;
+            startArpeggiator(arpeggiatorCurrentNotes);
+            // prova a riportare indice vicino al precedente per continuita (opzionale)
+            arpeggiatorIndex = savedIndex % (arpeggiatorCurrentNotes.length || 1);
+        }
     });
 }
 
