@@ -680,12 +680,30 @@
         </div>
     </div>
 
-    <script src="vr09b.js"></script>
+    <!-- loader: aggiunge CSS/JS con cache-busting per forzare download -->
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
-        }
+        (function(){
+            const t = Date.now();
+            // carica CSS con querystring per bypassare cache
+            const l = document.createElement('link');
+            l.rel = 'stylesheet';
+            l.href = 'styles.css?_=' + t;
+            document.head.appendChild(l);
+
+            // carica vr09b.js con querystring per bypassare cache
+            const s = document.createElement('script');
+            s.src = 'vr09b.js?_=' + t;
+            s.defer = true;
+            document.body.appendChild(s);
+
+            // registra service worker evitando l'uso della cache del browser per l'install/update
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js', {updateViaCache: 'none'})
+                    .catch(()=>{ /* ignore registration errors here */ });
+            }
+        })();
     </script>
+    <!-- rimuovere eventuali duplicati di <script src="vr09b.js"> -->
 </body>
 
 </html>
