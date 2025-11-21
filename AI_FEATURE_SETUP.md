@@ -24,7 +24,7 @@ Questa app ora supporta la generazione automatica di preset sintetizzatore trami
 4. Inserisci:
    - **Endpoint**: `https://api.groq.com/openai/v1/chat/completions`
    - **API Key**: La tua chiave Groq
-   - **Modello**: `mixtral-8x7b-32768` (veloce e preciso, consigliato) o altri disponibili
+   - **Modello**: `llama-2-70b-chat` (consigliato, stabile e veloce) o altri disponibili
 5. Clicca **Testa connessione** per verificare
 6. Clicca **Salva** per memorizzare
 
@@ -83,9 +83,9 @@ Il system prompt dell'AI conosce:
 - Pan: 0-127 (0=sinistra, 64=centro, 127=destra)
 
 ## Modelli Groq Disponibili
-- **mixtral-8x7b-32768** (consigliato): Veloce, buona qualità, 32K token context
-- **llama-2-70b-chat**: Più potente, più lento
-- **gemma-7b-it**: Leggero, veloce
+- **llama-2-70b-chat** (consigliato): Stabile, affidabile, JSON compliance garantita
+- **mixtral-8x7b-32768**: Veloce, ma meno stabile con certi formati di prompt
+- **gemma-7b-it**: Molto leggero, veloce
 
 [Consulta lista aggiornata: https://console.groq.com/docs/models]
 

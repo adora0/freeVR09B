@@ -1001,10 +1001,10 @@ function init() {
                     body: JSON.stringify({
                         model: model,
                         messages: [
-                            { role: 'system', content: 'You are a test. Respond with "OK".' },
-                            { role: 'user', content: 'Test' }
+                            { role: 'user', content: 'Respond with "OK".' }
                         ],
-                        max_tokens: 10
+                        max_tokens: 10,
+                        temperature: 0.7
                     })
                 });
 
