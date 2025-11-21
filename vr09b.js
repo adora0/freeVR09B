@@ -834,6 +834,9 @@ function applyGroqPreset(presetData) {
     Object.assign(oscillatorParams[activeOscId], presetData.amp);
     applyValuesToDom(presetData.amp);
 
+    // Save all parameters to memory for current oscillator
+    saveCurrentOscParams(activeOscId);
+
     // Update synth status
     updateOscillatorStatus();
 
