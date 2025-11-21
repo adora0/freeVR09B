@@ -737,106 +737,83 @@ input[disabled], input[disabled] + label.dest-btn {
 /* Piano Keyboard Styles */
 .piano-keyboard {
     display: flex;
-    gap: 10px;
-    padding: 20px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
     background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
     border-radius: 8px;
     margin: 16px 0;
-    overflow-x: auto;
 }
 
 .piano-octave {
-    position: relative;
-    width: 280px;
-    height: 200px;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 4px;
     background: #fff;
     border-radius: 6px;
-    padding: 10px;
+    padding: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .piano-key {
-    position: absolute;
+    position: relative;
     border: 2px solid #333;
     cursor: pointer;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
-    padding-bottom: 8px;
-    transition: all 0.1s ease;
+    padding: 6px 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
     user-select: none;
+    min-height: 38px;
+    font-weight: 600;
+    font-size: 11px;
 }
 
 /* Tasti bianchi */
 .piano-key.white {
-    width: 36px;
-    height: 160px;
     background: linear-gradient(to bottom, #fff 0%, #f9f9f9 70%, #e8e8e8 100%);
-    border-radius: 0 0 6px 6px;
-    box-shadow: inset -1px -1px 2px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #333;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.piano-key.white:hover:not(.selected) {
+.piano-key.white:active:not(.selected) {
     background: linear-gradient(to bottom, #f5f5f5 0%, #efefef 70%, #ddd 100%);
-    box-shadow: inset -1px -1px 2px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    transform: scale(0.98);
 }
 
 .piano-key.white.selected {
     background: linear-gradient(to bottom, #90ee90 0%, #7dd67d 70%, #6bc76b 100%);
-    box-shadow: inset -1px -1px 2px rgba(0, 0, 0, 0.1), 0 0 8px rgba(144, 238, 144, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 8px rgba(144, 238, 144, 0.8);
+    border-color: #4caf50;
+    font-weight: 700;
 }
 
 /* Tasti neri */
 .piano-key.black {
-    width: 24px;
-    height: 100px;
     background: linear-gradient(to bottom, #1a1a1a 0%, #0a0a0a 70%, #000 100%);
-    border-radius: 0 0 4px 4px;
-    border-color: #000;
     color: #fff;
-    z-index: 10;
-    box-shadow: inset -1px -1px 1px rgba(255, 255, 255, 0.1), 0 2px 4px rgba(0, 0, 0, 0.4);
+    border-color: #000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
-.piano-key.black:hover:not(.selected) {
+.piano-key.black:active:not(.selected) {
     background: linear-gradient(to bottom, #2a2a2a 0%, #1a1a1a 70%, #0a0a0a 100%);
-    box-shadow: inset -1px -1px 1px rgba(255, 255, 255, 0.1), 0 3px 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    transform: scale(0.98);
 }
 
 .piano-key.black.selected {
-    background: linear-gradient(to bottom, #ff6b6b 0%, #ff5252 70%, #ff3838 100%);
-    box-shadow: inset -1px -1px 1px rgba(255, 255, 255, 0.2), 0 0 8px rgba(255, 107, 107, 0.8);
-    border-color: #cc0000;
+    background: linear-gradient(to bottom, #90ee90 0%, #7dd67d 70%, #6bc76b 100%);
+    box-shadow: 0 0 8px rgba(144, 238, 144, 0.8);
+    border-color: #4caf50;
+    font-weight: 700;
 }
-
-/* Posizionamento tasti bianchi (C, D, E, F, G, A, B) */
-.piano-key.white:nth-of-type(1) { left: 10px; }
-.piano-key.white:nth-of-type(2) { left: 46px; }
-.piano-key.white:nth-of-type(3) { left: 82px; }
-.piano-key.white:nth-of-type(4) { left: 118px; }
-.piano-key.white:nth-of-type(5) { left: 154px; }
-.piano-key.white:nth-of-type(6) { left: 190px; }
-.piano-key.white:nth-of-type(7) { left: 226px; }
-
-/* Posizionamento tasti neri (C#, D#, F#, G#, A#) */
-.piano-key.black:nth-of-type(8) { left: 39px; }
-.piano-key.black:nth-of-type(9) { left: 75px; }
-.piano-key.black:nth-of-type(10) { left: 147px; }
-.piano-key.black:nth-of-type(11) { left: 183px; }
-.piano-key.black:nth-of-type(12) { left: 219px; }
 
 .key-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    color: inherit;
-}
-
-.piano-key.white .key-label {
-    color: #333;
-}
-
-.piano-key.black .key-label {
-    color: #fff;
-    font-size: 9px;
 }
 

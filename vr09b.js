@@ -951,7 +951,7 @@ function init() {
     }
 
     if (arpRateSlider) {
-        arpRateSlider.addEventListener('input', (e) => {
+        arpRateSlider.addEventListener('change', (e) => {
             arpeggiatorRate = parseInt(e.target.value, 10);
             if (arpRateValueEl) arpRateValueEl.textContent = arpeggiatorRate;
             logMessage(`Rate arpeggiatore: ${arpeggiatorRate}`, 'info');
