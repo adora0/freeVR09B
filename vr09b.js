@@ -21,10 +21,25 @@ const menuConnect = document.getElementById('menu-connect');
 const menuReset = document.getElementById('menu-reset');
 const menuSendAll = document.getElementById('menu-sendall');
 const menuPresets = document.getElementById('menu-presets');
+const menuParameters = document.getElementById('menu-parameters');
 const menuLogs = document.getElementById('menu-logs');
 const savePresetBtn = document.getElementById('save-preset-btn');
 const loadPresetBtn = document.getElementById('load-preset-btn');
 const presetFileInput = document.getElementById('preset-file-input');
+
+// AI Prompt elements
+const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
+const aiGenerateBtn = document.getElementById('ai-generate-btn');
+const aiStatusIndicator = document.getElementById('ai-status');
+
+// Parameters (Groq) Modal elements
+const parametersModal = document.getElementById('parameters-modal');
+const groqEndpointInput = document.getElementById('groq-endpoint');
+const groqApiKeyInput = document.getElementById('groq-api-key');
+const groqModelInput = document.getElementById('groq-model');
+const saveParametersBtn = document.getElementById('save-parameters-btn');
+const testGroqBtn = document.getElementById('test-groq-btn');
+const parametersStatusEl = document.getElementById('parameters-status');
 
 rdosc1.disabled = true;
 rdosc2.disabled = true;
@@ -41,6 +56,76 @@ const MODEL_ID = [0x00, 0x00, 0x71];
 const COMMAND_ID = 0x12;
 const UPPER_ID = [0x19, 0x41];
 OSCILLATOR_ID = 0x00;
+
+// Groq LLM Configuration (default values)
+const GROQ_DEFAULT_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_DEFAULT_MODEL = 'mixtral-8x7b-32768';
+
+// Load Groq config from localStorage (or use defaults)
+let groqConfig = {
+    endpoint: localStorage.getItem('groq_endpoint') || GROQ_DEFAULT_ENDPOINT,
+    apiKey: localStorage.getItem('groq_api_key') || '',
+    model: localStorage.getItem('groq_model') || GROQ_DEFAULT_MODEL
+};
+
+// System Prompt for Groq LLM - VR-09B Synthesizer Sound Design
+const GROQ_SYSTEM_PROMPT = `You are an expert Roland VR-09B synthesizer sound designer.
+Your task is to translate natural language sound descriptions into precise synthesizer parameter values.
+
+SYNTHESIS ARCHITECTURE:
+3 Oscillators (OSC1, OSC2, OSC3):
+- Wave: SAW(0), SQUARE(1), SINE(2)
+- Pitch: -24 to +24 semitones (0-127, center 64)
+- Detune: -50 to +50 cents (0-127, center 64)  
+- Pulse Width: 10-90% (0-127, center 64)
+- Volume: 0-127
+- Pitch Envelope: Attack, Decay, Depth (0-127)
+
+Filter (Multi-mode):
+- Mode: LPF(0), HPF(1), BPF(2)
+- Slope: 12dB(0), 24dB(1)
+- Cutoff: 0-127 (0=closed, 127=fully open)
+- Resonance: 0-127 (higher=more emphasis)
+- Keyfollow: -100 to +100 (0-127, center 64=no follow)
+- Envelope: Attack, Decay, Sustain, Release, Depth (0-127)
+
+LFO (Modulation):
+- Shape: SINE(0), TRIANGLE(1), SAW(2), SQUARE(3), RANDOM(4)
+- Rate: 0.1-100 Hz (0-127)
+- Depths for Pitch, Filter, Amp (0-127, center 64=neutral)
+- Tempo Sync: 0-127
+
+Amplitude Envelope:
+- Attack: 0-127 (0=immediate, 127=slow)
+- Decay: 0-127
+- Sustain: 0-127 (hold level)
+- Release: 0-127 (0=stop immediately, 127=long tail)
+- Pan: 0-127 (0=left, 64=center, 127=right)
+
+RESPONSE FORMAT (JSON only, no other text):
+{
+  "description": "Brief description of the sound",
+  "oscillators": {
+    "1": { "is-active": "1", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 80, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 },
+    "2": { "is-active": "0", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 0, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 },
+    "3": { "is-active": "0", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 0, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 }
+  },
+  "filter": {
+    "filter-mode": 0, "filter-slope": 0, "filter-cutoff": 100, "filter-cutoff-keyfollow": 64,
+    "filter-resonance": 40, "filter-env-attack": 10, "filter-env-decay": 50, "filter-env-sustain": 100,
+    "filter-env-release": 30, "filter-env-depth": 80
+  },
+  "lfo": {
+    "lfo-shape": 0, "lfo-rate": 40, "lfo-tempo-sync": 0, "lfo-tempo-sync-note": 0, "lfo-fade-time": 0,
+    "lfo-pitch-depth": 64, "lfo-filter-depth": 64, "lfo-amp-depth": 64,
+    "mod-lfo-shape": 0, "mod-lfo-rate": 40, "mod-lfo-tempo-sync": 0, "mod-lfo-tempo-sync-note": 0,
+    "mod-lfo-pitch-depth": 64, "mod-lfo-filter-depth": 64, "mod-lfo-amp-depth": 64
+  },
+  "amp": {
+    "amp-volume-env-attack": 0, "amp-volume-env-decay": 50, "amp-volume-env-sustain": 100,
+    "amp-volume-env-release": 50, "amp-pan": 64
+  }
+}`;
 
 // Arpeggiatore variables
 let arpeggiatorActive = false;
@@ -649,6 +734,115 @@ const oscillatorParams = {
 };
 
 activeOscId = '1';
+
+// ===== AI / Groq Helper Functions =====
+
+// Update AI status indicator UI
+function updateAiStatus(message, type = 'info') {
+    if (!aiStatusIndicator) return;
+    aiStatusIndicator.textContent = message;
+    aiStatusIndicator.classList.remove('success', 'error');
+    if (type !== 'info') {
+        aiStatusIndicator.classList.add(type);
+    }
+}
+
+// Display status in Parameters Modal
+function showParametersStatus(message, type = 'info') {
+    if (!parametersStatusEl) return;
+    parametersStatusEl.textContent = message;
+    parametersStatusEl.style.display = 'block';
+    parametersStatusEl.className = `preset-status-message ${type}`;
+}
+
+// Send prompt to Groq API and receive JSON preset
+async function sendPromptToGroq(userPrompt) {
+    if (!groqConfig.apiKey || !groqConfig.endpoint) {
+        throw new Error('Groq API Key not configured');
+    }
+
+    const fullPrompt = `${GROQ_SYSTEM_PROMPT}\n\nUser request: ${userPrompt}`;
+
+    const requestBody = {
+        model: groqConfig.model || GROQ_DEFAULT_MODEL,
+        messages: [
+            { role: 'system', content: GROQ_SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+    };
+
+    const response = await fetch(groqConfig.endpoint, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${groqConfig.apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Groq API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const messageContent = data.choices?.[0]?.message?.content;
+    if (!messageContent) {
+        throw new Error('No response from Groq API');
+    }
+
+    return messageContent;
+}
+
+// Apply preset generated by Groq
+function applyGroqPreset(presetData) {
+    // Validate preset structure
+    if (!presetData.oscillators || !presetData.filter || !presetData.lfo || !presetData.amp) {
+        throw new Error('Invalid preset JSON structure from LLM');
+    }
+
+    // Apply oscillator settings
+    Object.entries(presetData.oscillators).forEach(([oscNum, params]) => {
+        const numericOscId = String(oscNum); // '1', '2', '3'
+        
+        // Store in memory
+        Object.assign(oscillatorParams[numericOscId], params);
+
+        // Update switches
+        const switchEl = document.getElementById(`switch${oscNum}`);
+        if (switchEl) {
+            switchEl.checked = params['is-active'] === '1' || params['is-active'] === 1;
+        }
+
+        // Update UI if this is the active oscillator
+        if (numericOscId === activeOscId) {
+            applyValuesToDom(params);
+        }
+    });
+
+    // Apply filter settings
+    Object.assign(oscillatorParams[activeOscId], presetData.filter);
+    applyValuesToDom(presetData.filter);
+
+    // Apply LFO settings
+    Object.assign(oscillatorParams[activeOscId], presetData.lfo);
+    applyValuesToDom(presetData.lfo);
+
+    // Apply amp settings
+    Object.assign(oscillatorParams[activeOscId], presetData.amp);
+    applyValuesToDom(presetData.amp);
+
+    // Update synth status
+    updateOscillatorStatus();
+
+    // Send all parameters to MIDI hardware
+    sendAllParametersForOscillators(oscillatorParams);
+
+    logMessage('Preset AI applicato con successo', 'success');
+}
+
 // Imposta i parametri dell'oscillatore attivo all'avvio
 function init() {
     console.log('init(): running — initializing UI bindings');
@@ -723,6 +917,24 @@ function init() {
     if (menuReset) menuReset.addEventListener('click', () => resetAllToDefaults());
     if (menuSendAll) menuSendAll.addEventListener('click', () => sendAllParameters());
     if (menuPresets) menuPresets.addEventListener('click', () => { if (presetModal) presetModal.hidden = false; });
+    if (menuParameters && parametersModal) {
+        menuParameters.addEventListener('click', () => {
+            parametersModal.hidden = false;
+            // Load current values into form
+            groqEndpointInput.value = groqConfig.endpoint;
+            groqApiKeyInput.value = groqConfig.apiKey;
+            groqModelInput.value = groqConfig.model;
+        });
+        parametersModal.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.dataset && target.dataset.close !== undefined) {
+                parametersModal.hidden = true;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !parametersModal.hidden) parametersModal.hidden = true;
+        });
+    }
     if (menuLogs && logModal) {
         menuLogs.addEventListener('click', () => logModal.hidden = false);
         logModal.addEventListener('click', (e) => {
@@ -733,6 +945,116 @@ function init() {
         });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !logModal.hidden) logModal.hidden = true;
+        });
+    }
+
+    // ===== PARAMETRI GROQ (LLM Configuration) =====
+    if (saveParametersBtn) {
+        saveParametersBtn.addEventListener('click', () => {
+            const endpoint = groqEndpointInput.value.trim();
+            const apiKey = groqApiKeyInput.value.trim();
+            const model = groqModelInput.value.trim();
+
+            if (!endpoint || !apiKey || !model) {
+                showParametersStatus('Compila tutti i campi', 'error');
+                return;
+            }
+
+            groqConfig.endpoint = endpoint;
+            groqConfig.apiKey = apiKey;
+            groqConfig.model = model;
+
+            localStorage.setItem('groq_endpoint', endpoint);
+            localStorage.setItem('groq_api_key', apiKey);
+            localStorage.setItem('groq_model', model);
+
+            showParametersStatus('Parametri Groq salvati con successo', 'success');
+            setTimeout(() => { parametersModal.hidden = true; }, 1000);
+        });
+    }
+
+    if (testGroqBtn) {
+        testGroqBtn.addEventListener('click', async () => {
+            const endpoint = groqEndpointInput.value.trim();
+            const apiKey = groqApiKeyInput.value.trim();
+            const model = groqModelInput.value.trim();
+
+            if (!endpoint || !apiKey || !model) {
+                showParametersStatus('Compila tutti i campi prima di testare', 'error');
+                return;
+            }
+
+            testGroqBtn.disabled = true;
+            testGroqBtn.textContent = 'Test in corso...';
+            showParametersStatus('Test della connessione in corso...', 'info');
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: 'You are a test. Respond with "OK".' },
+                            { role: 'user', content: 'Test' }
+                        ],
+                        max_tokens: 10
+                    })
+                });
+
+                if (response.ok) {
+                    showParametersStatus('✓ Connessione riuscita!', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showParametersStatus(`Errore: ${errorData.error?.message || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showParametersStatus(`Errore di connessione: ${error.message}`, 'error');
+            } finally {
+                testGroqBtn.disabled = false;
+                testGroqBtn.textContent = 'Testa connessione';
+            }
+        });
+    }
+
+    // ===== AI PROMPT SECTION =====
+    if (aiGenerateBtn) {
+        aiGenerateBtn.addEventListener('click', async () => {
+            const prompt = aiPromptTextarea.value.trim();
+
+            if (!prompt) {
+                updateAiStatus('Inserisci una descrizione sonora', 'error');
+                return;
+            }
+
+            if (!groqConfig.apiKey) {
+                updateAiStatus('Configura Groq nel menu Parametri', 'error');
+                return;
+            }
+
+            aiGenerateBtn.disabled = true;
+            aiGenerateBtn.classList.add('loading');
+            updateAiStatus('Generazione in corso...', 'info');
+
+            try {
+                const presetJson = await sendPromptToGroq(prompt);
+                const parsedPreset = JSON.parse(presetJson);
+
+                // Applica il preset generato
+                applyGroqPreset(parsedPreset);
+                updateAiStatus('✓ Preset generato e applicato!', 'success');
+                aiPromptTextarea.value = '';
+
+            } catch (error) {
+                logMessage(`Errore AI: ${error.message}`, 'error');
+                updateAiStatus(`Errore: ${error.message}`, 'error');
+            } finally {
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.classList.remove('loading');
+            }
         });
     }
 

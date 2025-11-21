@@ -31,6 +31,7 @@
                         <button id="menu-reset" class="menu-item">Reset</button>
                         <button id="menu-sendall" class="menu-item">Send all params</button>
                         <button id="menu-presets" class="menu-item">Presets</button>
+                        <button id="menu-parameters" class="menu-item">Parametri</button>
                         <button id="menu-logs" class="menu-item">Visualizza log</button>
                     </div>
                 </div>
@@ -80,6 +81,18 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- AI Prompt Section -->
+            <div class="ai-prompt-section">
+                <div class="ai-prompt-container">
+                    <label for="ai-prompt-textarea">Descrivi il suono che desideri (es: "synth pad caldo e ampio" oppure "bass aggressivo e corposo")</label>
+                    <textarea id="ai-prompt-textarea" class="ai-prompt-input" placeholder="Inserisci una descrizione sonora..." rows="3"></textarea>
+                    <div class="ai-prompt-buttons">
+                        <button id="ai-generate-btn" class="ai-generate-btn" aria-label="Genera preset con AI">Genera con AI</button>
+                        <div id="ai-status" class="ai-status-indicator">Pronto</div>
+                    </div>
+                </div>
             </div>
 
             <div class="tab-buttons">
@@ -625,6 +638,36 @@
             </div>
             <div class="modal-body">
                 <div class="logs"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parameters (Groq LLM) dialog modal -->
+    <div id="parameters-modal" class="modal" hidden>
+        <div class="modal-backdrop" data-close="true"></div>
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="parameters-modal-title">
+            <div class="modal-header">
+                <h3 id="parameters-modal-title">Parametri LLM</h3>
+                <button class="modal-close" aria-label="Close" data-close="true">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-form-group">
+                    <label for="groq-endpoint">Endpoint Groq (URL)</label>
+                    <input type="text" id="groq-endpoint" class="modal-input" placeholder="https://api.groq.com/openai/v1/chat/completions" />
+                </div>
+                <div class="modal-form-group">
+                    <label for="groq-api-key">API Key Groq</label>
+                    <input type="password" id="groq-api-key" class="modal-input" placeholder="Inserisci la tua API Key" />
+                </div>
+                <div class="modal-form-group">
+                    <label for="groq-model">Modello Groq</label>
+                    <input type="text" id="groq-model" class="modal-input" placeholder="mixtral-8x7b-32768" />
+                </div>
+                <div class="modal-actions">
+                    <button id="save-parameters-btn" class="preset-action-btn">Salva</button>
+                    <button id="test-groq-btn" class="preset-action-btn">Testa connessione</button>
+                </div>
+                <div id="parameters-status" class="preset-status-message" style="display:none;"></div>
             </div>
         </div>
     </div>

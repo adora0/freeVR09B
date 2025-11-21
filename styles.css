@@ -817,3 +817,126 @@ input[disabled], input[disabled] + label.dest-btn {
     font-weight: 600;
 }
 
+/* ===== AI Prompt Section ===== */
+.ai-prompt-section {
+    background-color: #f9f9f9;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.ai-prompt-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ai-prompt-container label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.ai-prompt-input {
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    resize: vertical;
+    color: var(--color-text);
+    background-color: white;
+}
+
+.ai-prompt-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(204, 88, 88, 0.1);
+}
+
+.ai-prompt-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ai-generate-btn {
+    flex: 1;
+    padding: 10px 14px;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.ai-generate-btn:hover:not(:disabled) {
+    background-color: var(--color-primary-600);
+}
+
+.ai-generate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ai-generate-btn.loading {
+    background-color: #999;
+}
+
+.ai-status-indicator {
+    font-size: 12px;
+    color: #666;
+    padding: 8px;
+    text-align: center;
+    min-width: 100px;
+    background-color: white;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+}
+
+.ai-status-indicator.success {
+    color: #4caf50;
+    border-color: #4caf50;
+    background-color: #f1f8f6;
+}
+
+.ai-status-indicator.error {
+    color: #d32f2f;
+    border-color: #d32f2f;
+    background-color: #fef5f5;
+}
+
+/* ===== Modal Form Styling ===== */
+.modal-form-group {
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.modal-form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.modal-input {
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+.modal-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(204, 88, 88, 0.1);
+}
+
+
