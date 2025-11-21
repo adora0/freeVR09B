@@ -28,6 +28,9 @@ const loadPresetBtn = document.getElementById('load-preset-btn');
 const presetFileInput = document.getElementById('preset-file-input');
 
 // AI Prompt elements
+const aiPromptSection = document.getElementById('ai-prompt-section');
+const aiPromptToggle = document.getElementById('ai-prompt-toggle');
+const aiPromptContent = document.getElementById('ai-prompt-content');
 const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
 const aiGenerateBtn = document.getElementById('ai-generate-btn');
 const aiStatusIndicator = document.getElementById('ai-status');
@@ -1066,7 +1069,22 @@ function init() {
         });
     }
 
-    // ===== AI PROMPT SECTION =====
+    // ===== AI PROMPT SECTION (Collapsible) =====
+    if (aiPromptToggle) {
+        // Load collapsible state from localStorage
+        const aiPromptCollapsed = localStorage.getItem('aiPromptCollapsed') === 'false'; // default expanded
+        if (aiPromptCollapsed) {
+            aiPromptSection.classList.add('ai-expanded');
+            aiPromptContent.style.display = 'block';
+        }
+
+        aiPromptToggle.addEventListener('click', () => {
+            const isExpanded = aiPromptSection.classList.toggle('ai-expanded');
+            aiPromptContent.style.display = isExpanded ? 'block' : 'none';
+            localStorage.setItem('aiPromptCollapsed', !isExpanded);
+        });
+    }
+
     if (aiGenerateBtn) {
         aiGenerateBtn.addEventListener('click', async () => {
             const prompt = aiPromptTextarea.value.trim();

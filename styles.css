@@ -819,11 +819,76 @@ input[disabled], input[disabled] + label.dest-btn {
 
 /* ===== AI Prompt Section ===== */
 .ai-prompt-section {
-    background-color: #f9f9f9;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 12px;
-    margin-bottom: 8px;
+    margin: 10px 0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #1a1a1a;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.ai-prompt-header {
+    padding: 0;
+    margin: 0;
+}
+
+.ai-prompt-toggle {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: #2a2a2a;
+    border: none;
+    color: #ddd;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.ai-prompt-toggle:hover {
+    background-color: #333;
+    color: #fff;
+}
+
+.ai-prompt-toggle:active {
+    background-color: #1f1f1f;
+}
+
+.ai-prompt-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    transition: transform 0.3s ease;
+    font-size: 12px;
+}
+
+.ai-prompt-section.ai-expanded .ai-prompt-icon {
+    transform: rotate(-180deg);
+}
+
+.ai-prompt-title {
+    flex: 1;
+}
+
+.ai-prompt-content {
+    padding: 12px 15px;
+    animation: slideDown 0.3s ease;
+    border-top: 1px solid #444;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+    }
 }
 
 .ai-prompt-container {
@@ -833,81 +898,101 @@ input[disabled], input[disabled] + label.dest-btn {
 }
 
 .ai-prompt-container label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text);
+    color: #aaa;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 4px;
 }
 
 .ai-prompt-input {
-    padding: 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 13px;
+    padding: 8px 10px;
+    background-color: #0a0a0a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #ddd;
+    font-family: monospace;
+    font-size: 12px;
     resize: vertical;
-    color: var(--color-text);
-    background-color: white;
+    transition: border-color 0.2s ease;
 }
 
 .ai-prompt-input:focus {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(204, 88, 88, 0.1);
+    border-color: #888;
+    box-shadow: 0 0 3px rgba(136, 136, 136, 0.3);
 }
 
 .ai-prompt-buttons {
     display: flex;
     gap: 8px;
+    margin-top: 4px;
     align-items: center;
 }
 
 .ai-generate-btn {
     flex: 1;
-    padding: 10px 14px;
-    background-color: var(--color-primary);
+    padding: 8px 12px;
+    background-color: #1e90ff;
+    border: 1px solid #1570d0;
     color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: 600;
-    font-size: 13px;
+    border-radius: 3px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .ai-generate-btn:hover:not(:disabled) {
-    background-color: var(--color-primary-600);
+    background-color: #1570d0;
+    box-shadow: 0 0 8px rgba(30, 144, 255, 0.4);
+}
+
+.ai-generate-btn:active:not(:disabled) {
+    background-color: #0f50a0;
 }
 
 .ai-generate-btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-.ai-generate-btn.loading {
-    background-color: #999;
-}
-
 .ai-status-indicator {
-    font-size: 12px;
-    color: #666;
-    padding: 8px;
+    min-width: 80px;
+    padding: 6px 10px;
+    background-color: #0a0a0a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #aaa;
+    font-size: 11px;
     text-align: center;
-    min-width: 100px;
-    background-color: white;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
+    font-weight: 500;
 }
 
 .ai-status-indicator.success {
-    color: #4caf50;
-    border-color: #4caf50;
-    background-color: #f1f8f6;
+    color: #00ff00;
+    border-color: #008000;
+    background-color: #001a00;
 }
 
 .ai-status-indicator.error {
-    color: #d32f2f;
-    border-color: #d32f2f;
-    background-color: #fef5f5;
+    color: #ff4444;
+    border-color: #8b0000;
+    background-color: #1a0000;
+}
+
+.ai-status-indicator.loading {
+    color: #1e90ff;
+    border-color: #1570d0;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
 }
 
 /* ===== Modal Form Styling ===== */
