@@ -83,14 +83,22 @@
 
             </div>
 
-            <!-- AI Prompt Section -->
+            <!-- AI Prompt Section (Collapsible) -->
             <div class="ai-prompt-section">
-                <div class="ai-prompt-container">
-                    <label for="ai-prompt-textarea">Descrivi il suono che desideri (es: "synth pad caldo e ampio" oppure "bass aggressivo e corposo")</label>
-                    <textarea id="ai-prompt-textarea" class="ai-prompt-input" placeholder="Inserisci una descrizione sonora..." rows="3"></textarea>
-                    <div class="ai-prompt-buttons">
-                        <button id="ai-generate-btn" class="ai-generate-btn" aria-label="Genera preset con AI">Genera con AI</button>
-                        <div id="ai-status" class="ai-status-indicator">Pronto</div>
+                <div class="ai-prompt-header">
+                    <button id="ai-prompt-toggle" class="ai-prompt-toggle" aria-label="Espandi/Comprimi AI Prompt">
+                        <span class="ai-prompt-icon">▼</span>
+                        <span class="ai-prompt-title">Genera Preset con AI</span>
+                    </button>
+                </div>
+                <div id="ai-prompt-content" class="ai-prompt-content" style="display: none;">
+                    <div class="ai-prompt-container">
+                        <label for="ai-prompt-textarea">Descrivi il suono che desideri (es: "synth pad caldo e ampio" oppure "bass aggressivo e corposo")</label>
+                        <textarea id="ai-prompt-textarea" class="ai-prompt-input" placeholder="Inserisci una descrizione sonora..." rows="3"></textarea>
+                        <div class="ai-prompt-buttons">
+                            <button id="ai-generate-btn" class="ai-generate-btn" aria-label="Genera preset con AI">Genera con AI</button>
+                            <div id="ai-status" class="ai-status-indicator">Pronto</div>
+                        </div>
                     </div>
                 </div>
             </div>
