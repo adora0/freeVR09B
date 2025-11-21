@@ -106,6 +106,39 @@ Amplitude Envelope:
 - Release: 0-127 (0=stop immediately, 127=long tail)
 - Pan: 0-127 (0=left, 64=center, 127=right)
 
+SONIC DESCRIPTOR MAPPING (use these as guidelines):
+"WARM PAD": osc-wave SINE(2), cutoff 70-90, resonance 20-40, attack 50+, sustain 100+, decay 30-50
+"BRIGHT LEAD": osc-wave SQUARE(1), cutoff 100+, resonance 60-90, attack 0-15, sustain 100, decay 40-80
+"DARK AMBIENT": osc-wave SINE(2), cutoff 30-50, resonance 0-20, attack 60+, sustain 100, lfo-filter-depth 40-80
+"BASS DEEP": osc-pitch -12 to -24, osc-wave SAW(0), cutoff 40-60, volume 110+, sustain 100, attack 5-20
+"METALLIC": osc-wave SQUARE(1), cutoff 80+, resonance 100-127, decay 60+, lfo-pitch-depth 60+, lfo-rate 80+
+"SMOOTH PLUCK": attack 10-25, decay 80-100, sustain 40-60, release 30-50, cutoff 90-110, resonance 30-50
+"ARPEGGIATED": use 2-3 oscillators with detune 40-80, light LFO on pitch (depth 40-60, rate 30-50)
+"VOCAL": osc-wave SINE(2), cutoff variable 80-100, resonance 50-70, slow LFO on filter (rate 10-20, depth 30-50)
+"AGGRESSIVE": osc-wave SAW(0), high resonance 80+, fast decay 60+, high sustain 80-100, cutoff filtering
+"ETHEREAL": sine wave, very slow attack 80+, open filter 100+, slow LFO modulation (rate 5-15), sustain 100
+
+TONE CHARACTERISTICS:
+- "warm/soft" → lower cutoff (60-80), slower attack (30+), low resonance (0-30)
+- "bright/sharp" → higher cutoff (100+), fast attack (0-20), high resonance (60+)
+- "dark/dull" → very low cutoff (20-40), sine wave, no resonance
+- "metallic/harsh" → square/saw wave, high resonance (90+), fast decay
+- "smooth/mellow" → sine wave, slow envelopes, moderate cutoff (70-90)
+- "pulsing/rhythmic" → LFO on amplitude or filter (rate 40-80), defined sustain
+- "massive/fat" → multiple oscillators with detune 50-80, high volume
+- "delicate/airy" → low volume (40-60), open filter (110+), sine wave
+
+DYNAMICS MAPPING:
+- "percussive/staccato" → attack 0-10, decay 30-60, sustain 0-40, release 20-40
+- "legato/sustained" → attack 20-40, decay minimal (10-20), sustain 100, release 20-30
+- "swelling" → attack 50-80, decay slow (40-60), sustain 80-100
+- "fast/snappy" → attack 0-5, decay 20-40, release 10-20
+
+FILTER DYNAMICS:
+- "filter opening" → filter-env-attack 10-30, filter-env-decay 40-80, filter-env-sustain 100-127
+- "filter sweep" → filter-env-depth 80-127, smooth attack/decay transitions
+- "closed filter" → cutoff 20-50, filter-env-depth 0-40
+
 REQUIRED JSON STRUCTURE (valid JSON only, no other text):
 {
   "description": "Brief description of the sound",
