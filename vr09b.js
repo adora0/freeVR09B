@@ -59,7 +59,7 @@ OSCILLATOR_ID = 0x00;
 
 // Groq LLM Configuration (default values)
 const GROQ_DEFAULT_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_DEFAULT_MODEL = 'mixtral-8x7b-32768';
+const GROQ_DEFAULT_MODEL = 'llama-2-70b-chat'; // Changed from mixtral-8x7b-32768 for better stability
 
 // Load Groq config from localStorage (or use defaults)
 let groqConfig = {
@@ -761,13 +761,13 @@ async function sendPromptToGroq(userPrompt) {
         throw new Error('Groq API Key not configured');
     }
 
-    const fullPrompt = `${GROQ_SYSTEM_PROMPT}\n\nUser request: ${userPrompt}`;
+    // Combina system prompt + user prompt in un singolo user message per compatibilità
+    const fullPrompt = `${GROQ_SYSTEM_PROMPT}\n\nUser sound description:\n${userPrompt}`;
 
     const requestBody = {
         model: groqConfig.model || GROQ_DEFAULT_MODEL,
         messages: [
-            { role: 'system', content: GROQ_SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt }
+            { role: 'user', content: fullPrompt }
         ],
         temperature: 0.7,
         max_tokens: 2000
