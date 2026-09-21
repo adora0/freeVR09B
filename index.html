@@ -115,6 +115,30 @@
                                 <span class="value" id="live-pan-value">0</span>
                             </div>
                         </div>
+                        <div class="control-group live-volumes">
+                            <h3>Volumi canali (CC7)</h3>
+                            <div class="parameter">
+                                <label for="live-vol-upper">Upper — canale 4 (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="live-vol-upper" min="0" max="127" value="100" data-volume-ch="3">
+                                    <span class="value" id="live-vol-upper-value">100</span>
+                                </div>
+                            </div>
+                            <div class="parameter">
+                                <label for="live-vol-lower">Lower — canale 3 (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="live-vol-lower" min="0" max="127" value="100" data-volume-ch="2">
+                                    <span class="value" id="live-vol-lower-value">100</span>
+                                </div>
+                            </div>
+                            <div class="parameter">
+                                <label for="live-vol-drum">Drum — canale 11 (0-127)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="live-vol-drum" min="0" max="127" value="100" data-volume-ch="10">
+                                    <span class="value" id="live-vol-drum-value">100</span>
+                                </div>
+                            </div>
+                        </div>
                         <div class="live-actions">
                             <button id="live-sendall" class="send-btn">Send all</button>
                             <button id="live-panic" class="panic-btn">■ Panic</button>
@@ -604,11 +628,11 @@
                         <div class="parameter">
                             <label for="arp-midi-channel">Canale MIDI (Keyboard Sound Generator)</label>
                             <select id="arp-midi-channel">
-                                <option value="0">Canale 1 (Lower Part)</option>
+                                <option value="0">Canale 1</option>
                                 <option value="1">Canale 2</option>
-                                <option value="2">Canale 3</option>
+                                <option value="2">Canale 3 (Lower Part)</option>
                                 <option value="3">Canale 4 (Upper Part)</option>
-                                <option value="10">Canale 11</option>
+                                <option value="10">Canale 11 (Drum)</option>
                                 <option value="15">Canale 16</option>
                             </select>
                         </div>

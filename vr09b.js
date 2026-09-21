@@ -527,6 +527,30 @@ function sendMidiNoteOff(channelIndex, noteNumber) {
     }
 }
 
+// Volume di canale via CC7 (PDF p.2: ricevuto anche in [VR], default 100).
+// Upper = indice 3 (ch4), Lower = indice 2 (ch3), Drum = indice 10 (ch11).
+function sendChannelVolume(channelIndex, value) {
+    const v = Math.max(0, Math.min(127, parseInt(value)));
+    const vv = isNaN(v) ? 100 : v;
+    try { localStorage.setItem('vr09b_vol_ch' + channelIndex, String(vv)); } catch (_) {}
+    if (!midiOutput && !testMode) {
+        logMessage('Nessun dispositivo MIDI connesso', 'error');
+        return false;
+    }
+    try {
+        const msg = new Uint8Array([0xB0 | (channelIndex & 0x0F), 0x07, vv]);
+        if (testMode) {
+            logMessage(`[TEST] Volume CC7 - Ch:${channelIndex + 1} = ${vv}`, 'info');
+            return true;
+        }
+        midiOutput.send(msg);
+        return true;
+    } catch (error) {
+        logMessage(`Errore invio volume: ${error.message}`, 'error');
+        return false;
+    }
+}
+
 // Core logic to send all parameters (callable without UI effects)
 function sendAllParameters() {
     if (!midiOutput && !testMode) {
@@ -1675,6 +1699,20 @@ function init() {
     });
     const liveSendAll = document.getElementById('live-sendall');
     if (liveSendAll) liveSendAll.addEventListener('click', () => sendAllParameters());
+    // Volumi canali CC7: invio immediato + memoria separata dai preset synth
+    document.querySelectorAll('input[data-volume-ch]').forEach(vol => {
+        const ch = parseInt(vol.getAttribute('data-volume-ch'), 10);
+        const valEl = document.getElementById(vol.id + '-value');
+        try {
+            const saved = localStorage.getItem('vr09b_vol_ch' + ch);
+            if (saved !== null) vol.value = saved;
+        } catch (_) {}
+        if (valEl) valEl.textContent = vol.value;
+        vol.addEventListener('input', () => {
+            if (valEl) valEl.textContent = vol.value;
+            sendChannelVolume(ch, vol.value);
+        });
+    });
     const livePanic = document.getElementById('live-panic');
     if (livePanic) livePanic.addEventListener('click', () => panicAll());
     const headerPanic = document.getElementById('panic-btn');
@@ -1881,8 +1919,9 @@ document.addEventListener('change', handleSynthParamEvent);
 
 // Funzione per salvare tutti i parametri correnti per l'oscillatore attivo
 function saveCurrentOscParams(oscId) {
-    // salva range/select come prima
+    // salva range/select come prima (mirror live e volumi CC7 esclusi: non sono preset synth)
     document.querySelectorAll('input[type="range"], select').forEach(el => {
+        if (el.hasAttribute && (el.hasAttribute('data-mirror') || el.hasAttribute('data-volume-ch'))) return;
         if (el.id && el.id !== 'midi-output-select') {
             oscillatorParams[oscId][el.id] = el.value;
 
@@ -1899,6 +1938,7 @@ function loadOscParams(oscId) {
     if (!params) return;
    
     document.querySelectorAll('input[type="range"], select').forEach(el => {
+        if (el.hasAttribute && (el.hasAttribute('data-mirror') || el.hasAttribute('data-volume-ch'))) return;
         if (el.id && el.id !== 'midi-output-select' && params.hasOwnProperty(el.id)) {
             el.value = params[el.id];
             // Aggiorna eventuale visualizzazione del valore
@@ -1912,6 +1952,13 @@ function loadOscParams(oscId) {
                 }
             }
         }
+    });
+    // riallinea le macro live ai valori appena caricati
+    document.querySelectorAll('input[data-mirror]').forEach(macro => {
+        const target = document.getElementById(macro.getAttribute('data-mirror'));
+        const valEl = document.getElementById(macro.id + '-value');
+        if (target) macro.value = target.value;
+        if (valEl) valEl.textContent = macro.value;
     });
 }
 
