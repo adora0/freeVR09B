@@ -20,6 +20,7 @@
         <header class="app-bar">
             <div class="logo">
                 <img src="logo.png" alt="FreeVR09B" class="logo-img" decoding="sync" />
+                <span id="app-ver" class="app-ver" title="Versione app caricata">…</span>
             </div>
             <div class="connection-inline">
                 <div id="status">Stato: Non connesso</div>
@@ -588,6 +589,16 @@
                                 <input type="range" id="arp-rate" min="0" max="127" value="64">
                                 <span class="value" id="arp-rate-value">64</span>
                             </div>
+                        </div>
+
+                        <div class="parameter">
+                            <label>Destinazione rapida</label>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button id="arp-dest-upper" class="preset-action-btn" type="button">Upper (tasti)</button>
+                                <button id="arp-dest-lower" class="preset-action-btn" type="button">Lower (libero)</button>
+                                <button id="arp-edit-sound" class="preset-action-btn" type="button">✎ Modifica suono</button>
+                            </div>
+                            <p class="hint">Upper = ciò che suoni coi tasti fisici. Lower = parte indipendente: assegna un suono Synth al Lower sulla tastiera e verifica che la parte Lower sia attiva sullo strumento, poi premilo con "✎ Modifica suono" per regolarlo da qui.</p>
                         </div>
 
                         <div class="parameter">

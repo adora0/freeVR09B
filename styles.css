@@ -84,6 +84,16 @@ html, body {
     display: block;
     height: 100px;
 }
+.app-ver {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+    padding: 2px 8px;
+    align-self: center;
+    white-space: nowrap;
+}
 
 .connect-btn {
      background-color: var(--color-primary);

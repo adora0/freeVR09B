@@ -47,6 +47,7 @@ rdosc2.disabled = true;
 rdosc3.disabled = true;
 
 // MIDI variables
+const APP_VERSION = '1.4.0';
 let testMode = false; // Flag per abilitare la modalità test
 console.log('TestMode:', testMode);
 let midiAccess = null;
@@ -642,6 +643,13 @@ function initPartSelector() {
             currentPart = e.target.value;
             localStorage.setItem('vr09b_part', currentPart);
             logMessage(`Parte synth: ${PARTS[currentPart].label}`, 'success');
+            // La nuova parte sul synth potrebbe avere partial spenti o altri valori:
+            // le reinvio interruttori + parametri correnti così "ciò che vedi è ciò che suona".
+            // (La memoria valori è condivisa tra le parti in questa versione.)
+            if (midiOutput || testMode) {
+                updateOscillatorStatus();
+                sendAllParameters();
+            }
         });
     }
     // default canale arp coerente con la parte (modificabile comunque dall'utente)
@@ -1061,6 +1069,9 @@ function logMessage(message, type = 'info') {
 
 // Check for Web MIDI API support on page load
 window.addEventListener('load', () => {
+    const verBadge = document.getElementById('app-ver');
+    if (verBadge) verBadge.textContent = 'v' + APP_VERSION;
+    logMessage(`FreeVR09B v${APP_VERSION} caricato — verifica che la versione in alto corrisponda`, 'info');
     if (!navigator.requestMIDIAccess) {
         logMessage('Il browser non supporta Web MIDI API', 'error');
         statusEl.textContent = 'Stato: Web MIDI API non supportata';
@@ -1400,6 +1411,31 @@ function init() {
             logMessage(`Modalità arpeggiatore: ${arpeggiatorMode}`, 'info');
         });
     }
+
+    // Destinazione rapida arp: Upper (ch4 = tasti fisici) / Lower (ch3 = parte libera)
+    const arpDestUpper = document.getElementById('arp-dest-upper');
+    const arpDestLower = document.getElementById('arp-dest-lower');
+    const arpEditSound = document.getElementById('arp-edit-sound');
+    function setArpChannel(idx, label) {
+        if (arpChannelSelect) arpChannelSelect.value = String(idx);
+        try { localStorage.setItem('vr09b_arp_ch', String(idx)); } catch (_) {}
+        logMessage(`Arpeggiatore -> ${label} (canale ${idx + 1})`, 'success');
+    }
+    if (arpDestUpper) arpDestUpper.addEventListener('click', () => setArpChannel(3, 'Upper'));
+    if (arpDestLower) arpDestLower.addEventListener('click', () => setArpChannel(2, 'Lower'));
+    if (arpEditSound) arpEditSound.addEventListener('click', () => {
+        // Porta il selettore Parte sulla stessa destinazione dell'arp e invia i parametri
+        const ch = arpChannelSelect ? arpChannelSelect.value : '3';
+        const partSel = document.getElementById('part-select');
+        const targetPart = (ch === '2') ? 'lower' : 'upper1';
+        if (partSel) {
+            partSel.value = targetPart;
+            partSel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        // Mostra il tab Oscillatore per modificare subito il suono
+        const oscTab = document.querySelector('.tab-btn[data-tab="oscillator"]');
+        if (oscTab) oscTab.click();
+    });
 
     if (arpSequenceTypeSelect) {
         arpSequenceTypeSelect.addEventListener('change', (e) => {
@@ -1799,24 +1835,27 @@ function onPresetFileSelected(e) {
     reader.readAsText(file);
 }
 
-// Salva ogni parametro in memoria appena viene modificato
-// (gli slider live con data-mirror sono esclusi: inviano tramite il target reale)
-// NOTA Android: i <select> nativi emettono 'change' e non 'input' -> serve entrambi,
-// altrimenti i menu (onda, mode, shape...) non inviano mai nulla. Il coalescing
-// in coda SysEx rende innocuo l'eventuale doppio evento.
-document.querySelectorAll('input[type="range"], select').forEach(el => {
-    if (el.hasAttribute('data-mirror')) return;
-    if (el.id === 'part-select' || el.id === 'arp-midi-channel' || el.id === 'arp-mode' || el.id === 'arp-sequence-type' || el.id === 'arp-rate') return;
-    const onParamInput = () => {
-        if (el.id && el.id !== 'midi-output-select') {
-            if (!parameterAddresses[el.id]) return; // es. select non-synth
-            oscillatorParams[activeOscId][el.id] = el.value;
-            sendParameterValue(el.id, el.value); // <--- invia subito il parametro MIDI
-        }
-    };
-    el.addEventListener('input', onParamInput);
-    if (el.tagName === 'SELECT') el.addEventListener('change', onParamInput);
-});
+// Invio parametri synth: delegation su document per input+change.
+// I <select> nativi Android emettono solo 'change' (mai 'input'): senza delegation
+// i menu (onda, mode, shape...) restano muti. La delegation copre anche elementi
+// futuri ed è immune all'ordine di init. Il coalescing in coda rende innocuo il doppio evento.
+const NON_SYNTH_IDS = new Set(['midi-output-select', 'part-select', 'arp-midi-channel',
+    'arp-mode', 'arp-sequence-type', 'arp-rate', 'arp-dest-upper', 'arp-dest-lower', 'arp-edit-sound',
+    'rhythm-bpm', 'param-modal-slider', 'param-modal-rate', 'param-modal-depth', 'param-modal-shape']);
+function handleSynthParamEvent(e) {
+    const el = e.target;
+    if (!el || !el.id) return;
+    const isSelect = el.tagName === 'SELECT';
+    const isRange = el instanceof HTMLInputElement && el.type === 'range';
+    if (!isSelect && !isRange) return;
+    if (el.hasAttribute && el.hasAttribute('data-mirror')) return;
+    if (NON_SYNTH_IDS.has(el.id)) return;
+    if (parameterAddresses[el.id] === undefined) return;
+    oscillatorParams[activeOscId][el.id] = el.value;
+    sendParameterValue(el.id, el.value); // <--- invia subito il parametro MIDI
+}
+document.addEventListener('input', handleSynthParamEvent);
+document.addEventListener('change', handleSynthParamEvent);
 
 // Event listener per i radio button degli oscillatori
 ['radioosc1', 'radioosc2', 'radioosc3'].forEach(radioId => {

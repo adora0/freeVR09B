@@ -1,6 +1,8 @@
+const CACHE_NAME = 'midi-cache-v2'; // bump ad ogni release: forza refresh su Android
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open('midi-cache-v1').then((cache) => {
+    caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([
         'index.html',
         'vr09b.js',
@@ -9,7 +11,15 @@ self.addEventListener('install', (event) => {
       ]).catch((error) => {
         console.warn('Cache addAll failed, continuing anyway:', error);
       });
-    })
+    }).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
 
