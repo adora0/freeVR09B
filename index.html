@@ -24,6 +24,7 @@
             <div class="connection-inline">
                 <div id="status">Stato: Non connesso</div>
                 <button id="connect-btn" class="connect-btn" aria-label="Connetti dispositivo MIDI">Connetti</button>
+                <button id="panic-btn" class="panic-btn" aria-label="Ferma tutto (panico MIDI)" title="Stop LFO + arpeggiatore + tutte le note">■ Stop</button>
                 <div class="menu-container">
                     <button id="open-menu-btn" class="menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Apri menu">☰</button>
                     <div id="menu-dropdown" class="menu-dropdown" hidden>
@@ -31,7 +32,6 @@
                         <button id="menu-reset" class="menu-item">Reset</button>
                         <button id="menu-sendall" class="menu-item">Send all params</button>
                         <button id="menu-presets" class="menu-item">Presets</button>
-                        <button id="menu-parameters" class="menu-item">Parametri</button>
                         <button id="menu-logs" class="menu-item">Visualizza log</button>
                     </div>
                 </div>
@@ -40,6 +40,14 @@
 
         <div class="tab-container">
             <div class="performance-bar">
+                <div class="part-select-wrap">
+                    <label for="part-select">Parte</label>
+                    <select id="part-select" aria-label="Parte synth da modificare">
+                        <option value="upper1">Upper1 (libero)</option>
+                        <option value="upper2">Upper2 (arp)</option>
+                        <option value="lower">Lower</option>
+                    </select>
+                </div>
                 <div class="osc-groups">
                     <div class="osc-group">
                         <div class="switch-item">
@@ -83,36 +91,59 @@
 
             </div>
 
-            <!-- AI Prompt Section (Collapsible) -->
-            <div id="ai-prompt-section" class="ai-prompt-section">
-                <div class="ai-prompt-header">
-                    <button id="ai-prompt-toggle" class="ai-prompt-toggle" aria-label="Espandi/Comprimi AI Prompt">
-                        <span class="ai-prompt-icon">▼</span>
-                        <span class="ai-prompt-title">Genera Preset con AI</span>
-                    </button>
-                </div>
-                <div id="ai-prompt-content" class="ai-prompt-content" style="display: none;">
-                    <div class="ai-prompt-container">
-                        <label for="ai-prompt-textarea">Descrivi il suono che desideri (es: "synth pad caldo e ampio" oppure "bass aggressivo e corposo")</label>
-                        <textarea id="ai-prompt-textarea" class="ai-prompt-input" placeholder="Inserisci una descrizione sonora..." rows="3"></textarea>
-                        <div class="ai-prompt-buttons">
-                            <button id="ai-generate-btn" class="ai-generate-btn" aria-label="Genera preset con AI">Genera con AI</button>
-                            <div id="ai-status" class="ai-status-indicator">Pronto</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- (Sezione AI rimossa) -->
 
             <div class="tab-buttons">
-                <button class="tab-btn active" data-tab="oscillator">Oscillatore</button>
+                <button class="tab-btn active" data-tab="live">Live</button>
+                <button class="tab-btn" data-tab="oscillator">Oscillatore</button>
                 <button class="tab-btn" data-tab="filter">Filtro</button>
                 <button class="tab-btn" data-tab="lfo">LFO</button>
                 <button class="tab-btn" data-tab="amp">Amp</button>
                 <button class="tab-btn" data-tab="arp">Arpeggiatore</button>
             </div>
             <div class="tab-content">
+                <!-- Live Tab: macro comandi per suonare al volo -->
+                <div id="live" class="tab-panel">
+                    <div class="control-group live-macros">
+                        <h3>Live — macro (parte: <span id="live-part-label">Upper1</span>)</h3>
+                        <div class="parameter">
+                            <label for="live-cutoff">Cutoff (0-127)</label>
+                            <div class="slider-container">
+                                <input type="range" id="live-cutoff" min="0" max="127" value="127" data-mirror="filter-cutoff">
+                                <span class="value" id="live-cutoff-value">127</span>
+                            </div>
+                        </div>
+                        <div class="parameter">
+                            <label for="live-resonance">Resonance (0-127)</label>
+                            <div class="slider-container">
+                                <input type="range" id="live-resonance" min="0" max="127" value="0" data-mirror="filter-resonance">
+                                <span class="value" id="live-resonance-value">0</span>
+                            </div>
+                        </div>
+                        <div class="parameter">
+                            <label for="live-volume">Volume (0-127)</label>
+                            <div class="slider-container">
+                                <input type="range" id="live-volume" min="0" max="127" value="64" data-mirror="osc-volume">
+                                <span class="value" id="live-volume-value">64</span>
+                            </div>
+                        </div>
+                        <div class="parameter">
+                            <label for="live-pan">Pan (1-127)</label>
+                            <div class="slider-container">
+                                <input type="range" id="live-pan" min="1" max="127" value="64" data-mirror="amp-pan">
+                                <span class="value" id="live-pan-value">0</span>
+                            </div>
+                        </div>
+                        <div class="live-actions">
+                            <button id="live-sendall" class="send-btn">Send all</button>
+                            <button id="live-panic" class="panic-btn">■ Panic</button>
+                        </div>
+                        <p class="hint">Doppio tap su uno slider = reset. I Soft-LFO si attivano dai tab (pulsante ~LFO, doppio tap/long-press = rate/depth/shape).</p>
+                    </div>
+                    <div class="scroll-strip" aria-hidden="true" title="Area di scorrimento"></div>
+                </div>
                 <!-- Oscillator Tab -->
-                <div id="oscillator" class="tab-panel">
+                <div id="oscillator" class="tab-panel" style="display: none;">
                     <div class="control-group">
                         <h3>Parametri Oscillatore</h3>
                         <div class="parameter">
@@ -186,6 +217,14 @@
                             <div class="slider-container">
                                 <input type="range" id="osc-pitch-env-depth" min="1" max="127" value="64">
                                 <span class="value" id="osc-pitch-env-depth-value">0</span>
+                            </div>
+                        </div>
+
+                        <div class="parameter">
+                            <label for="super-saw-detune">Super Saw Detune (0-127) *nascosto*</label>
+                            <div class="slider-container">
+                                <input type="range" id="super-saw-detune" min="0" max="127" value="0">
+                                <span class="value" id="super-saw-detune-value">0</span>
                             </div>
                         </div>
                     </div>
@@ -458,6 +497,14 @@
                                 <span class="value" id="mod-lfo-amp-depth-value">0</span>
                             </div>
                         </div>
+
+                        <div class="parameter">
+                            <label for="mod-lfo-rate-ctrl">Rate Control (1-127) [-63 - +63] *nascosto*</label>
+                            <div class="slider-container">
+                                <input type="range" id="mod-lfo-rate-ctrl" min="1" max="127" value="64">
+                                <span class="value" id="mod-lfo-rate-ctrl-value">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -471,6 +518,14 @@
                             <div class="slider-container">
                                 <input type="range" id="osc-volume" min="0" max="127" value="64">
                                 <span class="value" id="osc-volume-value">64</span>
+                            </div>
+                        </div>
+
+                        <div class="parameter">
+                            <label for="amp-vel-sens">Velocity Sens (1-127) [-63 - +63] *nascosto*</label>
+                            <div class="slider-container">
+                                <input type="range" id="amp-vel-sens" min="1" max="127" value="64">
+                                <span class="value" id="amp-vel-sens-value">0</span>
                             </div>
                         </div>
 
@@ -650,35 +705,7 @@
         </div>
     </div>
 
-    <!-- Parameters (Groq LLM) dialog modal -->
-    <div id="parameters-modal" class="modal" hidden>
-        <div class="modal-backdrop" data-close="true"></div>
-        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="parameters-modal-title">
-            <div class="modal-header">
-                <h3 id="parameters-modal-title">Parametri LLM</h3>
-                <button class="modal-close" aria-label="Close" data-close="true">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-form-group">
-                    <label for="groq-endpoint">Endpoint Groq (URL)</label>
-                    <input type="text" id="groq-endpoint" class="modal-input" placeholder="https://api.groq.com/openai/v1/chat/completions" />
-                </div>
-                <div class="modal-form-group">
-                    <label for="groq-api-key">API Key Groq</label>
-                    <input type="password" id="groq-api-key" class="modal-input" placeholder="Inserisci la tua API Key" />
-                </div>
-                <div class="modal-form-group">
-                    <label for="groq-model">Modello Groq</label>
-                    <input type="text" id="groq-model" class="modal-input" placeholder="llama-2-70b-chat" />
-                </div>
-                <div class="modal-actions">
-                    <button id="save-parameters-btn" class="preset-action-btn">Salva</button>
-                    <button id="test-groq-btn" class="preset-action-btn">Testa connessione</button>
-                </div>
-                <div id="parameters-status" class="preset-status-message" style="display:none;"></div>
-            </div>
-        </div>
-    </div>
+    <!-- Parameters modal rimossa (AI) -->
 
     <!-- loader: aggiunge CSS/JS con cache-busting per forzare download -->
     <script>

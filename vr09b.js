@@ -27,21 +27,19 @@ const savePresetBtn = document.getElementById('save-preset-btn');
 const loadPresetBtn = document.getElementById('load-preset-btn');
 const presetFileInput = document.getElementById('preset-file-input');
 
-// AI Prompt elements
-const aiPromptSection = document.getElementById('ai-prompt-section');
-const aiPromptToggle = document.getElementById('ai-prompt-toggle');
-const aiPromptContent = document.getElementById('ai-prompt-content');
-const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
-const aiGenerateBtn = document.getElementById('ai-generate-btn');
-const aiStatusIndicator = document.getElementById('ai-status');
-
-// Parameters (Groq) Modal elements
+// (AI/Groq rimossi — le costanti seguenti restano null per compatibilità eventuali)
+const aiPromptSection = null;
+const aiPromptToggle = null;
+const aiPromptContent = null;
+const aiPromptTextarea = null;
+const aiGenerateBtn = null;
+const aiStatusIndicator = null;
 const parametersModal = document.getElementById('parameters-modal');
-const groqEndpointInput = document.getElementById('groq-endpoint');
-const groqApiKeyInput = document.getElementById('groq-api-key');
-const groqModelInput = document.getElementById('groq-model');
-const saveParametersBtn = document.getElementById('save-parameters-btn');
-const testGroqBtn = document.getElementById('test-groq-btn');
+const groqEndpointInput = null;
+const groqApiKeyInput = null;
+const groqModelInput = null;
+const saveParametersBtn = null;
+const testGroqBtn = null;
 const parametersStatusEl = document.getElementById('parameters-status');
 
 rdosc1.disabled = true;
@@ -57,115 +55,73 @@ const ROLAND_MANUFACTURER_ID = 0x41;
 const DEVICE_ID = 0x10;
 const MODEL_ID = [0x00, 0x00, 0x71];
 const COMMAND_ID = 0x12;
-const UPPER_ID = [0x19, 0x41];
-OSCILLATOR_ID = 0x00;
-
-// Groq LLM Configuration (default values)
-const GROQ_DEFAULT_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_DEFAULT_MODEL = 'llama-3.1-8b-instant'; // Changed from mixtral-8x7b-32768 for better stability
-
-// Load Groq config from localStorage (or use defaults)
-let groqConfig = {
-    endpoint: localStorage.getItem('groq_endpoint') || GROQ_DEFAULT_ENDPOINT,
-    apiKey: localStorage.getItem('groq_api_key') || '',
-    model: localStorage.getItem('groq_model') || GROQ_DEFAULT_MODEL
+// Part SysEx: base Temporary Synth Tone (PDF p.12)
+// Upper1 = 19 41, Upper2 = 19 21, Lower = 1A 21
+const PARTS = {
+    'upper1': { id: [0x19, 0x41], label: 'Upper1', arpChannel: 3 },
+    'upper2': { id: [0x19, 0x21], label: 'Upper2', arpChannel: 1 },
+    'lower': { id: [0x1A, 0x21], label: 'Lower', arpChannel: 2 }
 };
+let currentPart = localStorage.getItem('vr09b_part') || 'upper1';
+if (!PARTS[currentPart]) currentPart = 'upper1';
+// Partial (oscillatore) -> terzo byte indirizzo (PDF: 00 01 00 / 00 02 00 / 00 03 00)
+const PARTIAL_IDS = { '1': 0x01, '2': 0x02, '3': 0x03 };
+// Offset interruttori Partial in Tone Common (00 19 / 00 1B / 00 1D)
+const PARTIAL_SWITCH_OFFSETS = { '1': 0x19, '2': 0x1B, '3': 0x1D };
+// Retro-compat: UPPER_ID = Upper1
+const UPPER_ID = PARTS['upper1'].id;
+let OSCILLATOR_ID = 0x00;
 
-// System Prompt for Groq LLM - VR-09B Synthesizer Sound Design
-// System Prompt for Groq LLM - VR-09B Synthesizer Sound Design
-const GROQ_SYSTEM_PROMPT = `You are an expert Roland VR-09B synthesizer sound designer.
-Translate natural language sound descriptions into precise synthesizer parameter JSON.
+// --- SysEx helpers (checksum Roland: solo address+data, cf. PDF p.14) ---
+function rolandChecksum(addressBytes, dataBytes) {
+    let sum = 0;
+    addressBytes.forEach(b => sum += b);
+    dataBytes.forEach(b => sum += b);
+    const rem = sum % 128;
+    return rem === 0 ? 0 : 128 - rem;
+}
+function buildDt1(addressBytes, dataBytes) {
+    const cks = rolandChecksum(addressBytes, dataBytes);
+    return [0xF0, ROLAND_MANUFACTURER_ID, DEVICE_ID, ...MODEL_ID, COMMAND_ID,
+        ...addressBytes, ...dataBytes, cks, 0xF7];
+}
+// Coda SysEx: il PDF impone >=40ms tra pacchetti DT1 consecutivi.
+// Coalescing: per stessa chiave indirizzo si tiene solo l'ultimo valore.
+const SYSEX_GAP_MS = 40;
+let sysexQueue = [];
+let sysexProcessing = false;
+let lastSysexTime = 0;
+function enqueueSysEx(bytes, key) {
+    if (key) {
+        sysexQueue = sysexQueue.filter(e => e.key !== key);
+    }
+    sysexQueue.push({ bytes, key });
+    processSysexQueue();
+}
+function processSysexQueue() {
+    if (sysexProcessing) return;
+    sysexProcessing = true;
+    const step = () => {
+        if (!sysexQueue.length) { sysexProcessing = false; return; }
+        const now = performance.now();
+        const wait = Math.max(0, SYSEX_GAP_MS - (now - lastSysexTime));
+        setTimeout(() => {
+            const entry = sysexQueue.shift();
+            lastSysexTime = performance.now();
+            if (entry) {
+                if (testMode) {
+                    console.log('TestMode SysEx:', formatSysEx(entry.bytes));
+                } else if (midiOutput) {
+                    try { midiOutput.send(new Uint8Array(entry.bytes)); } catch (e) { logMessage('Errore invio SysEx: ' + e.message, 'error'); }
+                }
+            }
+            step();
+        }, wait);
+    };
+    step();
+}
 
-IMPORTANT: Return ONLY valid JSON without any introductory text, explanation, or commentary.
-Start with { and end with }. No markdown, no code blocks, no preamble.
-
-SYNTHESIS ARCHITECTURE:
-3 Oscillators (OSC1, OSC2, OSC3):
-- Wave: SAW(0), SQUARE(1), SINE(2)
-- Pitch: -24 to +24 semitones (0-127, center 64)
-- Detune: -50 to +50 cents (0-127, center 64)  
-- Pulse Width: 10-90% (0-127, center 64)
-- Volume: 0-127
-- Pitch Envelope: Attack, Decay, Depth (0-127)
-
-Filter (Multi-mode):
-- Mode: LPF(0), HPF(1), BPF(2)
-- Slope: 12dB(0), 24dB(1)
-- Cutoff: 0-127 (0=closed, 127=fully open)
-- Resonance: 0-127 (higher=more emphasis)
-- Keyfollow: -100 to +100 (0-127, center 64=no follow)
-- Envelope: Attack, Decay, Sustain, Release, Depth (0-127)
-
-LFO (Modulation):
-- Shape: SINE(0), TRIANGLE(1), SAW(2), SQUARE(3), RANDOM(4)
-- Rate: 0.1-100 Hz (0-127)
-- Depths for Pitch, Filter, Amp (0-127, center 64=neutral)
-- Tempo Sync: 0-127
-
-Amplitude Envelope:
-- Attack: 0-127 (0=immediate, 127=slow)
-- Decay: 0-127
-- Sustain: 0-127 (hold level)
-- Release: 0-127 (0=stop immediately, 127=long tail)
-- Pan: 0-127 (0=left, 64=center, 127=right)
-
-SONIC DESCRIPTOR MAPPING (use these as guidelines):
-"WARM PAD": osc-wave SINE(2), cutoff 70-90, resonance 20-40, attack 50+, sustain 100+, decay 30-50
-"BRIGHT LEAD": osc-wave SQUARE(1), cutoff 100+, resonance 60-90, attack 0-15, sustain 100, decay 40-80
-"DARK AMBIENT": osc-wave SINE(2), cutoff 30-50, resonance 0-20, attack 60+, sustain 100, lfo-filter-depth 40-80
-"BASS DEEP": osc-pitch -12 to -24, osc-wave SAW(0), cutoff 40-60, volume 110+, sustain 100, attack 5-20
-"METALLIC": osc-wave SQUARE(1), cutoff 80+, resonance 100-127, decay 60+, lfo-pitch-depth 60+, lfo-rate 80+
-"SMOOTH PLUCK": attack 10-25, decay 80-100, sustain 40-60, release 30-50, cutoff 90-110, resonance 30-50
-"ARPEGGIATED": use 2-3 oscillators with detune 40-80, light LFO on pitch (depth 40-60, rate 30-50)
-"VOCAL": osc-wave SINE(2), cutoff variable 80-100, resonance 50-70, slow LFO on filter (rate 10-20, depth 30-50)
-"AGGRESSIVE": osc-wave SAW(0), high resonance 80+, fast decay 60+, high sustain 80-100, cutoff filtering
-"ETHEREAL": sine wave, very slow attack 80+, open filter 100+, slow LFO modulation (rate 5-15), sustain 100
-
-TONE CHARACTERISTICS:
-- "warm/soft" → lower cutoff (60-80), slower attack (30+), low resonance (0-30)
-- "bright/sharp" → higher cutoff (100+), fast attack (0-20), high resonance (60+)
-- "dark/dull" → very low cutoff (20-40), sine wave, no resonance
-- "metallic/harsh" → square/saw wave, high resonance (90+), fast decay
-- "smooth/mellow" → sine wave, slow envelopes, moderate cutoff (70-90)
-- "pulsing/rhythmic" → LFO on amplitude or filter (rate 40-80), defined sustain
-- "massive/fat" → multiple oscillators with detune 50-80, high volume
-- "delicate/airy" → low volume (40-60), open filter (110+), sine wave
-
-DYNAMICS MAPPING:
-- "percussive/staccato" → attack 0-10, decay 30-60, sustain 0-40, release 20-40
-- "legato/sustained" → attack 20-40, decay minimal (10-20), sustain 100, release 20-30
-- "swelling" → attack 50-80, decay slow (40-60), sustain 80-100
-- "fast/snappy" → attack 0-5, decay 20-40, release 10-20
-
-FILTER DYNAMICS:
-- "filter opening" → filter-env-attack 10-30, filter-env-decay 40-80, filter-env-sustain 100-127
-- "filter sweep" → filter-env-depth 80-127, smooth attack/decay transitions
-- "closed filter" → cutoff 20-50, filter-env-depth 0-40
-
-REQUIRED JSON STRUCTURE (valid JSON only, no other text):
-{
-  "description": "Brief description of the sound",
-  "oscillators": {
-    "1": { "is-active": "1", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 80, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 },
-    "2": { "is-active": "0", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 0, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 },
-    "3": { "is-active": "0", "osc-wave": 0, "osc-pitch": 64, "osc-detune": 64, "osc-pw": 64, "osc-volume": 0, "osc-pitch-env-attack": 0, "osc-pitch-env-decay": 0, "osc-pitch-env-depth": 64 }
-  },
-  "filter": {
-    "filter-mode": 0, "filter-slope": 0, "filter-cutoff": 100, "filter-cutoff-keyfollow": 64,
-    "filter-resonance": 40, "filter-env-attack": 10, "filter-env-decay": 50, "filter-env-sustain": 100,
-    "filter-env-release": 30, "filter-env-depth": 80
-  },
-  "lfo": {
-    "lfo-shape": 0, "lfo-rate": 40, "lfo-tempo-sync": 0, "lfo-tempo-sync-note": 0, "lfo-fade-time": 0,
-    "lfo-pitch-depth": 64, "lfo-filter-depth": 64, "lfo-amp-depth": 64,
-    "mod-lfo-shape": 0, "mod-lfo-rate": 40, "mod-lfo-tempo-sync": 0, "mod-lfo-tempo-sync-note": 0,
-    "mod-lfo-pitch-depth": 64, "mod-lfo-filter-depth": 64, "mod-lfo-amp-depth": 64
-  },
-  "amp": {
-    "amp-volume-env-attack": 0, "amp-volume-env-decay": 50, "amp-volume-env-sustain": 100,
-    "amp-volume-env-release": 50, "amp-pan": 64
-  }
-}`;
+// (Sezione AI rimossa — vedi docs/archive/ per implementazione futura)
 
 // Arpeggiatore variables
 let arpeggiatorActive = false;
@@ -223,11 +179,16 @@ const parameterAddresses = {
 
     //Amp parameters
     'osc-volume': 0x15,
+    'amp-vel-sens': 0x16,
     'amp-volume-env-attack': 0x17,
     'amp-volume-env-decay': 0x18,
     'amp-volume-env-sustain': 0x19,
     'amp-volume-env-release': 0x1A,
-    'amp-pan': 0x1B
+    'amp-pan': 0x1B,
+
+    // Hidden partial params (PDF p.13)
+    'super-saw-detune': 0x3A,
+    'mod-lfo-rate-ctrl': 0x3B
 };
 
 
@@ -255,7 +216,8 @@ const bidirectionalParams = [
     'osc-pitch', 'osc-detune', 'osc-pitch-env-depth',
     'filter-cutoff-keyfollow', 'filter-env-depth',
     'lfo-pitch-depth', 'lfo-filter-depth', 'lfo-amp-depth',
-    'mod-lfo-pitch-depth', 'mod-lfo-filter-depth', 'mod-lfo-amp-depth'
+    'mod-lfo-pitch-depth', 'mod-lfo-filter-depth', 'mod-lfo-amp-depth',
+    'amp-vel-sens', 'mod-lfo-rate-ctrl'
 ];
 
 
@@ -385,8 +347,8 @@ function showMidiOutputSelection() {
     });
 }
 
-// Send parameter value to VR-09B
-function sendParameterValue(paramId, value, oscIdOverride) {
+// Send parameter value to VR-09B (indirizzo: Part[2] + Partial[1] + offset[1])
+function sendParameterValue(paramId, value, oscIdOverride, partOverride) {
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return false;
@@ -399,48 +361,34 @@ function sendParameterValue(paramId, value, oscIdOverride) {
     }
 
     try {
-        // Determina l'ID dell'oscillatore: override > radio selezionata > errore
-        let targetOscId = null;
+        // Determina il partial: override ('1'/'2'/'3') > radio selezionata > activeOscId
+        let oscNum = null;
         if (oscIdOverride !== undefined && oscIdOverride !== null) {
-            targetOscId = String(oscIdOverride);
+            oscNum = String(oscIdOverride).replace(/[^1-3]/g, '') || String(oscIdOverride);
+            // retro-compat: '25'->'1', '27'->'2', '29'->'3'
+            if (oscNum === '25') oscNum = '1';
+            if (oscNum === '27') oscNum = '2';
+            if (oscNum === '29') oscNum = '3';
         } else {
             const oscSelected = document.querySelectorAll('input[name="osc-wave-variation"]:checked');
-            if (oscSelected.length === 0) {
-                logMessage('Nessun oscillatore selezionato', 'error');
-                return false;
-            }
-            targetOscId = oscSelected[0].value;
+            if (oscSelected.length > 0) oscNum = oscSelected[0].value;
+            else oscNum = activeOscId || '1';
         }
+        const partialByte = PARTIAL_IDS[oscNum] || PARTIAL_IDS['1'];
+        const partKey = partOverride || currentPart;
+        const partBytes = (PARTS[partKey] || PARTS['upper1']).id;
 
-        const sysexMessage = [
-            0xF0,
-            ROLAND_MANUFACTURER_ID,
-            DEVICE_ID,
-            ...MODEL_ID,
-            COMMAND_ID,
-            ...UPPER_ID,
-            targetOscId,
-            address,
-            parseInt(value),
-            0x00,
-            0xF7
-        ];
-
-        // Calcolo checksum
-        let checksum = 0;
-        for (let i = 1; i < sysexMessage.length - 2; i++) {
-            checksum += sysexMessage[i];
-        }
-        checksum = 128 - (checksum % 128);
-        sysexMessage[sysexMessage.length - 2] = checksum;
+        const addrBytes = [...partBytes, partialByte, address];
+        const v = Math.max(0, Math.min(127, parseInt(value)));
+        const sysexMessage = buildDt1(addrBytes, [v]);
+        const key = `${partKey}:${partialByte}:${address}`;
 
         if (testMode) {
             console.log('TestMode: SysEx generato:', formatSysEx(sysexMessage));
         } else {
-            midiOutput.send(new Uint8Array(sysexMessage));
-            logMessage(`Parametro inviato: ${paramId} = ${value} - ` + formatSysEx(sysexMessage), 'info');
+            enqueueSysEx(sysexMessage, key);
+            logMessage(`Parametro inviato [${PARTS[partKey].label} P${oscNum}]: ${paramId} = ${v} — ` + formatSysEx(sysexMessage), 'info');
         }
-
         return true;
     } catch (error) {
         logMessage(`Errore nell'invio del parametro: ${error.message}`, 'error');
@@ -460,50 +408,37 @@ function sendParameterValue(paramId, value, oscIdOverride) {
         // Impediamo valori troppo bassi
         return Math.max(20, delayMs);
     }
-// accende o spegne l'oscilallatore
-function setOscOn(osc, status) {
-
+// accende o spegne il partial (Tone Common 00 19/1B/1D, cf. PDF p.12)
+function setOscOn(osc, status, partOverride) {
     if (!midiOutput && !testMode) {
         logMessage('Nessun dispositivo MIDI connesso', 'error');
         return false;
     }
-    const address = 0x00;
-
-    OSCILLATOR_ID = parseInt(osc);
+    let oscNum = String(osc).replace(/[^1-3]/g, '');
+    if (!oscNum) {
+        // retro-compat: '25'->'1', '27'->'2', '29'->'3'
+        if (String(osc) === '25') oscNum = '1';
+        else if (String(osc) === '27') oscNum = '2';
+        else if (String(osc) === '29') oscNum = '3';
+        else oscNum = '1';
+    }
+    const switchOffset = PARTIAL_SWITCH_OFFSETS[oscNum] || 0x19;
+    const partKey = partOverride || currentPart;
+    const partBytes = (PARTS[partKey] || PARTS['upper1']).id;
+    OSCILLATOR_ID = switchOffset;
     try {
-
-        // Format for Roland system exclusive message
-        // F0 41 10 00 00 00 0F address value checksum F7
-        const sysexMessage = [
-            0xF0,                // Start of SysEx
-            ROLAND_MANUFACTURER_ID, // Roland ID
-            DEVICE_ID,          // Device ID
-            ...MODEL_ID,        // Model ID
-            COMMAND_ID, 		//Command ID
-            ...UPPER_ID,			//upper 1941
-            address,      // 0x00 address for oscillator on/off
-            OSCILLATOR_ID,            // Oscillator ID
-            parseInt(status),    // Parameter value
-            0x00,               // Checksum placeholder
-            0xF7                // End of SysEx
-        ];
-
-        // Calculate checksum (Roland format)
-        let checksum = 0;
-        for (let i = 1; i < sysexMessage.length - 2; i++) {
-            checksum += sysexMessage[i];
-        }
-        checksum = 128 - (checksum % 128);
-        sysexMessage[sysexMessage.length - 2] = checksum;
+        // Indirizzo: Part[2] + 00 + switchOffset (es. 19 41 00 19 = Upper1 Partial1 Switch)
+        const addrBytes = [...partBytes, 0x00, switchOffset];
+        const sysexMessage = buildDt1(addrBytes, [parseInt(status) ? 1 : 0]);
 
         if (testMode) {
             console.log('TestMode: SysEx generato:', formatSysEx(sysexMessage));
             return true;
         }
 
-        // Send the message                                      
-        midiOutput.send(new Uint8Array(sysexMessage));
-        logMessage(`Oscillatore: ${osc} = ` + formatSysEx(sysexMessage), 'info');
+        // Send the message (via coda 40ms)
+        enqueueSysEx(sysexMessage, `sw:${partKey}:${oscNum}`);
+        logMessage(`Oscillatore [${PARTS[partKey].label} P${oscNum}]: ${status} — ` + formatSysEx(sysexMessage), 'info');
         return true;
     } catch (error) {
         logMessage(`Errore nell'invio del parametro: ${error.message}`, 'error');
@@ -601,10 +536,11 @@ function sendAllParameters() {
     let successCount = 0;
     let failCount = 0;
 
-    // invia i valori attuali della UI per l'oscillatore selezionato
-    document.querySelectorAll('select, input[type="range"]').forEach(element => {
-        if (element.id !== 'midi-output-select') {
-            const result = sendParameterValue(element.id, element.value);
+    // invia i valori attuali della UI per l'oscillatore selezionato (solo params synth, no mirror/UI)
+    Object.keys(parameterAddresses).forEach(paramId => {
+        const element = document.getElementById(paramId);
+        if (element) {
+            const result = sendParameterValue(paramId, element.value);
             if (result) successCount++; else failCount++;
         }
     });
@@ -613,15 +549,253 @@ function sendAllParameters() {
         failCount > 0 ? 'error' : 'success');
 }
 
-// Map oscillatore numerico (1/2/3) a ID SysEx usati nel progetto
+// Map oscillatore numerico (1/2/3) a partial SysEx (retro-compat: ritorna '1'/'2'/'3')
 function mapOscNumberToSysExId(oscNumber) {
-    // valori usati nelle altre parti del codice: '25','27','29'
-    switch (String(oscNumber)) {
-        case '1': return '25';
-        case '2': return '27';
-        case '3': return '29';
-        default: return '25';
+    const n = String(oscNumber);
+    return (n === '2') ? '2' : (n === '3') ? '3' : '1';
+}
+
+// Panic: ferma LFO software, arpeggiatore e tutte le note
+function panicAll() {
+    try { stopAllSoftLFO(); } catch (_) {}
+    try { if (typeof stopArpeggiatorGlobal === 'function') stopArpeggiatorGlobal(); } catch (_) {}
+    if (midiOutput && !testMode) {
+        // All Notes Off + All Sound Off sui canali keyboard
+        [0, 1, 2, 3, 10, 15].forEach(ch => {
+            try {
+                midiOutput.send(new Uint8Array([0xB0 | ch, 123, 0]));
+                midiOutput.send(new Uint8Array([0xB0 | ch, 120, 0]));
+            } catch (_) {}
+        });
     }
+    sysexQueue = [];
+    logMessage('PANIC: tutto fermato (note off + code svuotate)', 'success');
+}
+
+// ===== TIMER ROBUSTO via Web Worker (anti-throttle su rotate/background) =====
+let robustWorker = null;
+let robustHandlers = new Map();
+let robustSeq = 0;
+function getRobustWorker() {
+    if (robustWorker) return robustWorker;
+    try {
+        const src = `let timers={};onmessage=e=>{const d=e.data;
+if(d.cmd==='start'){if(timers[d.id])clearInterval(timers[d.id]);
+timers[d.id]=setInterval(()=>postMessage({id:d.id,t:Date.now()}),d.ms);}
+else if(d.cmd==='stop'){if(timers[d.id]){clearInterval(timers[d.id]);delete timers[d.id];}}};`;
+        robustWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        robustWorker.onmessage = (e) => {
+            const h = robustHandlers.get(e.data.id);
+            if (h) h(e.data.t);
+        };
+    } catch (_) { robustWorker = null; }
+    return robustWorker;
+}
+function robustSetInterval(cb, ms) {
+    const w = getRobustWorker();
+    if (!w) return setInterval(cb, ms);
+    const id = 'r' + (++robustSeq);
+    robustHandlers.set(id, cb);
+    w.postMessage({ cmd: 'start', id, ms: Math.max(20, ms) });
+    return id;
+}
+function robustClearInterval(id) {
+    const w = getRobustWorker();
+    if (!w || typeof id !== 'string' || !id.startsWith('r')) { clearInterval(id); return; }
+    try { w.postMessage({ cmd: 'stop', id }); } catch (_) {}
+    robustHandlers.delete(id);
+}
+// WakeLock + keep-alive su visibilitychange (Android/Chrome USB-OTG)
+let wakeLockSentinel = null;
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            if (wakeLockSentinel) { try { await wakeLockSentinel.release(); } catch (_) {} }
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+        }
+    } catch (_) {}
+}
+function initRobustTimers() {
+    requestWakeLock();
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            requestWakeLock();
+            // riallinea clock Soft-LFO e arpeggiatore per evitare salti
+            softLFOEngine.rebase();
+            if (typeof arpeggiatorRebase === 'function') arpeggiatorRebase();
+        }
+    });
+    window.addEventListener('orientationchange', () => {
+        // NON ricreare i timer: solo log + wake lock (la rotazione non deve fermare l'audio)
+        setTimeout(() => requestWakeLock(), 300);
+    });
+}
+
+// ===== SELETTORE PART (Upper1/Upper2/Lower) =====
+function initPartSelector() {
+    const sel = document.getElementById('part-select');
+    const arpSel = document.getElementById('arp-midi-channel');
+    if (sel) {
+        sel.value = currentPart;
+        sel.addEventListener('change', (e) => {
+            currentPart = e.target.value;
+            localStorage.setItem('vr09b_part', currentPart);
+            logMessage(`Parte synth: ${PARTS[currentPart].label}`, 'success');
+        });
+    }
+    // default canale arp coerente con la parte (modificabile comunque dall'utente)
+    if (arpSel && !localStorage.getItem('vr09b_arp_ch')) {
+        arpSel.value = String(PARTS[currentPart].arpChannel);
+    }
+    if (arpSel) arpSel.addEventListener('change', (e) => localStorage.setItem('vr09b_arp_ch', e.target.value));
+}
+
+// ===== SOFT-LFO: un LFO software per OGNI parametro =====
+// Modulazione bipolare attorno al valore base dello slider.
+// rate: 0.05..10 Hz | depth: 0..63 | shape: sine/tri/saw/sqr/s&h/random
+const SOFT_LFO_TARGETS = [
+    'osc-pitch', 'osc-detune', 'osc-pw', 'osc-pw-mod-depth',
+    'osc-pitch-env-depth', 'super-saw-detune',
+    'filter-cutoff', 'filter-resonance', 'filter-env-depth',
+    'lfo-rate', 'lfo-pitch-depth', 'lfo-filter-depth', 'lfo-amp-depth',
+    'mod-lfo-rate', 'mod-lfo-rate-ctrl',
+    'osc-volume', 'amp-vel-sens', 'amp-pan'
+];
+let softLFOState = {}; // paramId -> {on, rate, depth, shape, phase, base, smooth}
+SOFT_LFO_TARGETS.forEach(p => {
+    softLFOState[p] = { on: false, rate: 1.0, depth: 20, shape: 'sine', phase: Math.random(), base: null, smooth: 0, shVal: 0 };
+    try {
+        const saved = JSON.parse(localStorage.getItem('softlfo_' + p) || 'null');
+        if (saved) Object.assign(softLFOState[p], saved);
+    } catch (_) {}
+});
+function softLfoWave(shape, phase) {
+    const p = phase % 1;
+    switch (shape) {
+        case 'sine': return Math.sin(p * Math.PI * 2);
+        case 'tri': return 4 * Math.abs(p - 0.5) - 1;
+        case 'saw': return p * 2 - 1;
+        case 'sqr': return p < 0.5 ? 1 : -1;
+        case 's&h': return softLFOState._sh || 0;
+        case 'random': return Math.random() * 2 - 1;
+        default: return Math.sin(p * Math.PI * 2);
+    }
+}
+const softLFOEngine = {
+    timerId: null, lastTick: 0,
+    start() {
+        if (this.timerId) return;
+        this.lastTick = performance.now();
+        // tick 50ms via worker robusto (coerente con coda SysEx 40ms)
+        this.timerId = robustSetInterval(() => this.tick(), 50);
+    },
+    stop() {
+        if (!this.timerId) return;
+        robustClearInterval(this.timerId);
+        this.timerId = null;
+    },
+    rebase() { this.lastTick = performance.now(); },
+    tick() {
+        const now = performance.now();
+        let dt = (now - this.lastTick) / 1000;
+        this.lastTick = now;
+        if (dt > 0.5) dt = 0.05; // tab nascosto a lungo: evita salti
+        let anyOn = false;
+        SOFT_LFO_TARGETS.forEach(paramId => {
+            const st = softLFOState[paramId];
+            if (!st || !st.on) return;
+            anyOn = true;
+            const el = document.getElementById(paramId);
+            if (st.base === null || st.base === undefined) {
+                st.base = el ? parseInt(el.value) : 64;
+            }
+            st.phase = (st.phase + dt * st.rate) % 1;
+            if (st.shape === 's&h') {
+                // nuovo valore ogni ciclo
+                if (!st._acc) st._acc = 0;
+                st._acc += dt * st.rate;
+                if (st._acc >= 1) { st._acc = 0; st._shVal = Math.random() * 2 - 1; }
+            }
+            let v;
+            if (st.shape === 's&h') v = st._shVal || 0;
+            else v = softLfoWave(st.shape, st.phase);
+            let target = Math.round(st.base + v * st.depth);
+            const elMin = el ? parseInt(el.min) : 0;
+            const elMax = el ? parseInt(el.max) : 127;
+            target = Math.max(elMin, Math.min(elMax, target));
+            // smoothing one-pole per evitare zipper su cutoff/volume
+            if (st.smooth > 0) {
+                st._sm = st._sm === undefined ? target : st._sm + (target - st._sm) * 0.4;
+                target = Math.round(st._sm);
+            }
+            // aggiorna slider senza triggerare loop: invia SysEx diretto sul partial correntemente in edit
+            if (el && document.activeElement !== el) {
+                el.value = target;
+                const valEl = document.getElementById(paramId + '-value');
+                if (valEl) {
+                    if (bidirectionalParams.includes(paramId)) {
+                        const c = (parseInt(el.min) + parseInt(el.max)) / 2;
+                        valEl.textContent = Math.round(target - c);
+                    } else valEl.textContent = target;
+                }
+            }
+            const oscSel = document.querySelector('input[name="osc-wave-variation"]:checked');
+            const oscNum = oscSel ? oscSel.value : (activeOscId || '1');
+            sendParameterValue(paramId, target, oscNum);
+        });
+        if (!anyOn) this.stop();
+    }
+};
+function setSoftLFO(paramId, patch) {
+    Object.assign(softLFOState[paramId], patch);
+    try { localStorage.setItem('softlfo_' + paramId, JSON.stringify({ on: softLFOState[paramId].on, rate: softLFOState[paramId].rate, depth: softLFOState[paramId].depth, shape: softLFOState[paramId].shape })); } catch (_) {}
+    const el = document.getElementById(paramId);
+    if (patch.on && el) softLFOState[paramId].base = parseInt(el.value);
+    if (patch.on) { softLFOEngine.start(); requestWakeLock(); }
+}
+function stopAllSoftLFO() {
+    SOFT_LFO_TARGETS.forEach(p => { softLFOState[p].on = false; });
+    softLFOEngine.stop();
+    document.querySelectorAll('.softlfo-toggle.on').forEach(b => { b.classList.remove('on'); b.textContent = 'LFO off'; });
+}
+function initSoftLFOUI() {
+    // Inietta un mini-toggle "~LFO" accanto a ogni slider target (se non esiste)
+    SOFT_LFO_TARGETS.forEach(paramId => {
+        const slider = document.getElementById(paramId);
+        if (!slider) return;
+        const container = slider.closest('.slider-container');
+        if (!container || container.querySelector('.softlfo-toggle')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'softlfo-toggle' + (softLFOState[paramId].on ? ' on' : '');
+        btn.textContent = softLFOState[paramId].on ? 'LFO on' : '~LFO';
+        btn.title = 'Soft-LFO software: tieni premuto per impostazioni';
+        btn.setAttribute('aria-label', 'Attiva Soft-LFO per ' + paramId);
+        btn.addEventListener('click', () => {
+            const st = softLFOState[paramId];
+            setSoftLFO(paramId, { on: !st.on });
+            btn.classList.toggle('on', softLFOState[paramId].on);
+            btn.textContent = softLFOState[paramId].on ? 'LFO on' : '~LFO';
+        });
+        // long-press / doppio click -> pannello impostazioni
+        btn.addEventListener('dblclick', () => openSoftLFOPanel(paramId));
+        let pressTimer = null;
+        btn.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openSoftLFOPanel(paramId), 600); }, { passive: true });
+        btn.addEventListener('touchend', () => { if (pressTimer) clearTimeout(pressTimer); });
+        container.appendChild(btn);
+    });
+    if (softLFOState && SOFT_LFO_TARGETS.some(p => softLFOState[p].on)) softLFOEngine.start();
+}
+function openSoftLFOPanel(paramId) {
+    const st = softLFOState[paramId];
+    const rate = prompt(`Soft-LFO ${paramId} — rate Hz (0.05-10):`, String(st.rate));
+    if (rate !== null) st.rate = Math.max(0.05, Math.min(10, parseFloat(rate) || 1));
+    const depth = prompt(`Soft-LFO ${paramId} — depth (0-63):`, String(st.depth));
+    if (depth !== null) st.depth = Math.max(0, Math.min(63, parseInt(depth) || 0));
+    const shape = prompt(`Soft-LFO ${paramId} — shape (sine/tri/saw/sqr/s&h/random):`, st.shape);
+    if (shape !== null && ['sine', 'tri', 'saw', 'sqr', 's&h', 'random'].includes(shape)) st.shape = shape;
+    setSoftLFO(paramId, {});
+    logMessage(`Soft-LFO ${paramId}: ${st.shape} ${st.rate}Hz depth ${st.depth}`, 'info');
 }
 
 // Invia tutti i parametri per gli oscillatori attivi usando i dati forniti
@@ -692,33 +866,33 @@ function updateOscillatorStatus() {
     if (osc1) {
         rdosc1.disabled = false;
         rdosc1.removeAttribute('disabled');
-        setOscOn('25', '1');
+        setOscOn('1', '1');
     } else {
         rdosc1.disabled = true;
         rdosc1.setAttribute('disabled', '');
-        setOscOn('25', '0');
+        setOscOn('1', '0');
     }
     if (osc2) {
         rdosc2.disabled = false;
         rdosc2.removeAttribute('disabled');
-        setOscOn('27', '1');
+        setOscOn('2', '1');
     }
     else {
         rdosc2.disabled = true;
         rdosc2.setAttribute('disabled', '');
-        setOscOn('27', '0');
+        setOscOn('2', '0');
 
     }
     if (osc3) {
         rdosc3.disabled = false;
         rdosc3.removeAttribute('disabled');
-        setOscOn('29', '1');
+        setOscOn('3', '1');
 
     }
     else {
         rdosc3.disabled = true;
         rdosc3.setAttribute('disabled', '');
-        setOscOn('29', '0');
+        setOscOn('3', '0');
 
     }
 
@@ -775,122 +949,11 @@ const oscillatorParams = {
 
 activeOscId = '1';
 
-// ===== AI / Groq Helper Functions =====
-
-// Update AI status indicator UI
-function updateAiStatus(message, type = 'info') {
-    if (!aiStatusIndicator) return;
-    aiStatusIndicator.textContent = message;
-    aiStatusIndicator.classList.remove('success', 'error');
-    if (type !== 'info') {
-        aiStatusIndicator.classList.add(type);
-    }
-}
-
-// Display status in Parameters Modal
-function showParametersStatus(message, type = 'info') {
-    if (!parametersStatusEl) return;
-    parametersStatusEl.textContent = message;
-    parametersStatusEl.style.display = 'block';
-    parametersStatusEl.className = `preset-status-message ${type}`;
-}
-
-// Send prompt to Groq API and receive JSON preset
-async function sendPromptToGroq(userPrompt) {
-    if (!groqConfig.apiKey || !groqConfig.endpoint) {
-        throw new Error('Groq API Key not configured');
-    }
-
-    // Combina system prompt + user prompt in un singolo user message per compatibilità
-    const fullPrompt = `${GROQ_SYSTEM_PROMPT}\n\nUser sound description:\n${userPrompt}`;
-
-    const requestBody = {
-        model: groqConfig.model || GROQ_DEFAULT_MODEL,
-        messages: [
-            { role: 'user', content: fullPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-    };
-
-    const response = await fetch(groqConfig.endpoint, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${groqConfig.apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Groq API error: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    const messageContent = data.choices?.[0]?.message?.content;
-    if (!messageContent) {
-        throw new Error('No response from Groq API');
-    }
-
-    // Extract JSON from response (may contain introductory text)
-    const jsonMatch = messageContent.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error('No valid JSON found in response');
-    }
-
-    return jsonMatch[0];
-}
-
-// Apply preset generated by Groq
-function applyGroqPreset(presetData) {
-    // Validate preset structure
-    if (!presetData.oscillators || !presetData.filter || !presetData.lfo || !presetData.amp) {
-        throw new Error('Invalid preset JSON structure from LLM');
-    }
-
-    // Apply oscillator settings
-    Object.entries(presetData.oscillators).forEach(([oscNum, params]) => {
-        const numericOscId = String(oscNum); // '1', '2', '3'
-        
-        // Store in memory
-        Object.assign(oscillatorParams[numericOscId], params);
-
-        // Update switches
-        const switchEl = document.getElementById(`switch${oscNum}`);
-        if (switchEl) {
-            switchEl.checked = params['is-active'] === '1' || params['is-active'] === 1;
-        }
-
-        // Update UI if this is the active oscillator
-        if (numericOscId === activeOscId) {
-            applyValuesToDom(params);
-        }
-    });
-
-    // Apply filter settings
-    Object.assign(oscillatorParams[activeOscId], presetData.filter);
-    applyValuesToDom(presetData.filter);
-
-    // Apply LFO settings
-    Object.assign(oscillatorParams[activeOscId], presetData.lfo);
-    applyValuesToDom(presetData.lfo);
-
-    // Apply amp settings
-    Object.assign(oscillatorParams[activeOscId], presetData.amp);
-    applyValuesToDom(presetData.amp);
-
-    // Save all parameters to memory for current oscillator
-    saveCurrentOscParams(activeOscId);
-
-    // Update synth status
-    updateOscillatorStatus();
-
-    // Send all parameters to MIDI hardware
-    sendAllParametersForOscillators(oscillatorParams);
-
-    logMessage('Preset AI applicato con successo', 'success');
-}
+// ===== AI rimossa (stub per compatibilità) =====
+function updateAiStatus() {}
+function showParametersStatus() {}
+async function sendPromptToGroq() { throw new Error('AI rimossa'); }
+function applyGroqPreset() { throw new Error('AI rimossa'); }
 
 // Imposta i parametri dell'oscillatore attivo all'avvio
 function init() {
@@ -966,24 +1029,8 @@ function init() {
     if (menuReset) menuReset.addEventListener('click', () => resetAllToDefaults());
     if (menuSendAll) menuSendAll.addEventListener('click', () => sendAllParameters());
     if (menuPresets) menuPresets.addEventListener('click', () => { if (presetModal) presetModal.hidden = false; });
-    if (menuParameters && parametersModal) {
-        menuParameters.addEventListener('click', () => {
-            parametersModal.hidden = false;
-            // Load current values into form
-            groqEndpointInput.value = groqConfig.endpoint;
-            groqApiKeyInput.value = groqConfig.apiKey;
-            groqModelInput.value = groqConfig.model;
-        });
-        parametersModal.addEventListener('click', (e) => {
-            const target = e.target;
-            if (target && target.dataset && target.dataset.close !== undefined) {
-                parametersModal.hidden = true;
-            }
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !parametersModal.hidden) parametersModal.hidden = true;
-        });
-    }
+    if (menuParameters) menuParameters.style.display = 'none';
+    if (parametersModal) parametersModal.hidden = true;
     if (menuLogs && logModal) {
         menuLogs.addEventListener('click', () => logModal.hidden = false);
         logModal.addEventListener('click', (e) => {
@@ -997,132 +1044,16 @@ function init() {
         });
     }
 
-    // ===== PARAMETRI GROQ (LLM Configuration) =====
-    if (saveParametersBtn) {
-        saveParametersBtn.addEventListener('click', () => {
-            const endpoint = groqEndpointInput.value.trim();
-            const apiKey = groqApiKeyInput.value.trim();
-            const model = groqModelInput.value.trim();
+    // (AI/Groq rimossi)
 
-            if (!endpoint || !apiKey || !model) {
-                showParametersStatus('Compila tutti i campi', 'error');
-                return;
-            }
+    // ===== TIMER ROBUSTI (rotazione/background Android/Chrome) =====
+    // Problema: setInterval viene throttlato/messo in pausa su rotate/hidden.
+    // Soluzione: Worker dedicato + WakeLock + recupero drift su visibilitychange.
+    initRobustTimers();
+    initPartSelector();
+    initSoftLFOUI();
 
-            groqConfig.endpoint = endpoint;
-            groqConfig.apiKey = apiKey;
-            groqConfig.model = model;
-
-            localStorage.setItem('groq_endpoint', endpoint);
-            localStorage.setItem('groq_api_key', apiKey);
-            localStorage.setItem('groq_model', model);
-
-            showParametersStatus('Parametri Groq salvati con successo', 'success');
-            setTimeout(() => { parametersModal.hidden = true; }, 1000);
-        });
-    }
-
-    if (testGroqBtn) {
-        testGroqBtn.addEventListener('click', async () => {
-            const endpoint = groqEndpointInput.value.trim();
-            const apiKey = groqApiKeyInput.value.trim();
-            const model = groqModelInput.value.trim();
-
-            if (!endpoint || !apiKey || !model) {
-                showParametersStatus('Compila tutti i campi prima di testare', 'error');
-                return;
-            }
-
-            testGroqBtn.disabled = true;
-            testGroqBtn.textContent = 'Test in corso...';
-            showParametersStatus('Test della connessione in corso...', 'info');
-
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: [
-                            { role: 'user', content: 'Respond with "OK".' }
-                        ],
-                        max_tokens: 10,
-                        temperature: 0.7
-                    })
-                });
-
-                if (response.ok) {
-                    showParametersStatus('✓ Connessione riuscita!', 'success');
-                } else {
-                    const errorData = await response.json();
-                    showParametersStatus(`Errore: ${errorData.error?.message || response.statusText}`, 'error');
-                }
-            } catch (error) {
-                showParametersStatus(`Errore di connessione: ${error.message}`, 'error');
-            } finally {
-                testGroqBtn.disabled = false;
-                testGroqBtn.textContent = 'Testa connessione';
-            }
-        });
-    }
-
-    // ===== AI PROMPT SECTION (Collapsible) =====
-    if (aiPromptToggle) {
-        // Load collapsible state from localStorage
-        const aiPromptCollapsed = localStorage.getItem('aiPromptCollapsed') === 'false'; // default expanded
-        if (aiPromptCollapsed) {
-            aiPromptSection.classList.add('ai-expanded');
-            aiPromptContent.style.display = 'block';
-        }
-
-        aiPromptToggle.addEventListener('click', () => {
-            const isExpanded = aiPromptSection.classList.toggle('ai-expanded');
-            aiPromptContent.style.display = isExpanded ? 'block' : 'none';
-            localStorage.setItem('aiPromptCollapsed', !isExpanded);
-        });
-    }
-
-    if (aiGenerateBtn) {
-        aiGenerateBtn.addEventListener('click', async () => {
-            const prompt = aiPromptTextarea.value.trim();
-
-            if (!prompt) {
-                updateAiStatus('Inserisci una descrizione sonora', 'error');
-                return;
-            }
-
-            if (!groqConfig.apiKey) {
-                updateAiStatus('Configura Groq nel menu Parametri', 'error');
-                return;
-            }
-
-            aiGenerateBtn.disabled = true;
-            aiGenerateBtn.classList.add('loading');
-            updateAiStatus('Generazione in corso...', 'info');
-
-            try {
-                const presetJson = await sendPromptToGroq(prompt);
-                const parsedPreset = JSON.parse(presetJson);
-
-                // Applica il preset generato
-                applyGroqPreset(parsedPreset);
-                updateAiStatus('✓ Preset generato e applicato!', 'success');
-                aiPromptTextarea.value = '';
-
-            } catch (error) {
-                logMessage(`Errore AI: ${error.message}`, 'error');
-                updateAiStatus(`Errore: ${error.message}`, 'error');
-            } finally {
-                aiGenerateBtn.disabled = false;
-                aiGenerateBtn.classList.remove('loading');
-            }
-        });
-    }
-
-    // ===== ARPEGGIATORE MIDI (ottimizzato) =====
+    // ===== ARPEGGIATORE MIDI (ottimizzato + timer robusto) =====
     // Cache DOM elementi usati dall'arpeggiatore
     const arpChannelSelect = document.getElementById('arp-midi-channel');
     const arpModeSelect = document.getElementById('arp-mode');
@@ -1139,6 +1070,10 @@ function init() {
     let arpeggiatorCurrentNotes = [];   // array numerico ordinato delle note correnti
     let arpeggiatorPrevNote = null;     // nota attualmente suonata (per arpeggio)
     let arpeggiatorRunning = false;     // true se la sequenza/accordo è in esecuzione
+    let arpeggiatorDelay = 500;
+    let arpeggiatorLastTick = 0;
+    function arpeggiatorRebaseLocal() { arpeggiatorLastTick = performance.now(); }
+    window.arpeggiatorRebase = arpeggiatorRebaseLocal;
 
     // helper: ottieni note selezionate e converti a numeri (una sola volta)
     function collectSelectedNoteNumbers() {
@@ -1222,13 +1157,16 @@ function init() {
         };
 
         playStep();
-        arpeggiatorInterval = setInterval(playStep, delay);
+        arpeggiatorInterval = robustSetInterval(playStep, delay);
+        arpeggiatorDelay = delay;
+        arpeggiatorLastTick = performance.now();
+        requestWakeLock();
     }
 
     // stopArpeggiator inviando NoteOff robusti e pulendo stato
     function stopArpeggiator() {
         if (arpeggiatorInterval) {
-            clearInterval(arpeggiatorInterval);
+            robustClearInterval(arpeggiatorInterval);
             arpeggiatorInterval = null;
         }
 
@@ -1254,6 +1192,8 @@ function init() {
 
         logMessage('✓ Arpeggiatore fermato - Tutte le note arrestate', 'success');
     }
+    // esposti per panicAll() (timer robusti)
+    window.stopArpeggiatorGlobal = stopArpeggiator;
 
     // Aggiorna lo stato visuale dell'arpeggiatore
     function updateArpeggiatorStatus() {
@@ -1378,6 +1318,39 @@ function init() {
             }
         });
     });
+
+    // ===== LIVE TAB: mirror macro -> parametri reali + panic =====
+    document.querySelectorAll('input[data-mirror]').forEach(macro => {
+        const targetId = macro.getAttribute('data-mirror');
+        const target = document.getElementById(targetId);
+        const valEl = document.getElementById(macro.id + '-value');
+        if (target) macro.value = target.value;
+        if (valEl) valEl.textContent = macro.value;
+        macro.addEventListener('input', () => {
+            if (valEl) valEl.textContent = macro.value;
+            if (target) {
+                target.value = macro.value;
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+        // doppio tap = reset al default
+        macro.addEventListener('dblclick', () => {
+            const def = (DEFAULTS && DEFAULTS[targetId]) || macro.getAttribute('value') || 64;
+            macro.value = def;
+            macro.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    });
+    const liveSendAll = document.getElementById('live-sendall');
+    if (liveSendAll) liveSendAll.addEventListener('click', () => sendAllParameters());
+    const livePanic = document.getElementById('live-panic');
+    if (livePanic) livePanic.addEventListener('click', () => panicAll());
+    const headerPanic = document.getElementById('panic-btn');
+    if (headerPanic) headerPanic.addEventListener('click', () => panicAll());
+    const livePartLabel = document.getElementById('live-part-label');
+    const partSel = document.getElementById('part-select');
+    const syncLiveLabel = () => { if (livePartLabel) livePartLabel.textContent = (PARTS[currentPart] || {}).label || currentPart; };
+    syncLiveLabel();
+    if (partSel) partSel.addEventListener('change', syncLiveLabel);
 }
 
 // Ensure init runs even if DOMContentLoaded already fired (dynamic script insertion)
@@ -1435,11 +1408,16 @@ const DEFAULTS = {
 
     // Amp
     'osc-volume': '64',
+    'amp-vel-sens': '64',
     'amp-volume-env-attack': '0',
     'amp-volume-env-decay': '0',
     'amp-volume-env-sustain': '127',
     'amp-volume-env-release': '0',
-    'amp-pan': '64'
+    'amp-pan': '64',
+
+    // Hidden
+    'super-saw-detune': '0',
+    'mod-lfo-rate-ctrl': '64'
 };
 
 function applyValuesToDom(values) {
@@ -1525,9 +1503,13 @@ function onPresetFileSelected(e) {
 }
 
 // Salva ogni parametro in memoria appena viene modificato
+// (gli slider live con data-mirror sono esclusi: inviano tramite il target reale)
 document.querySelectorAll('input[type="range"], select').forEach(el => {
+    if (el.hasAttribute('data-mirror')) return;
+    if (el.id === 'part-select' || el.id === 'arp-midi-channel' || el.id === 'arp-mode' || el.id === 'arp-sequence-type' || el.id === 'arp-rate') return;
     el.addEventListener('input', () => {
         if (el.id && el.id !== 'midi-output-select') {
+            if (!parameterAddresses[el.id]) return; // es. select non-synth
             oscillatorParams[activeOscId][el.id] = el.value;
             sendParameterValue(el.id, el.value); // <--- invia subito il parametro MIDI
         }

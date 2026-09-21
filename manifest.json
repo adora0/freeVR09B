@@ -1,9 +1,10 @@
 {
-  "name": "WebMIDI Controller",
-  "short_name": "MIDI-PWA",
+  "name": "FreeVR09B - Roland VR-09B Controller",
+  "short_name": "FreeVR09B",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "orientation": "any",
+  "background_color": "#111111",
+  "theme_color": "#cc5858",
   "icons": []
 }
