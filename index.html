@@ -79,6 +79,7 @@
                 <button class="tab-btn" data-tab="lfo">LFO</button>
                 <button class="tab-btn" data-tab="amp">Amp</button>
                 <button class="tab-btn" data-tab="arp">Arpeggiatore</button>
+                <button class="tab-btn" data-tab="rhythm">Ritmica</button>
             </div>
             <div class="tab-content">
                 <!-- Live Tab: macro comandi per suonare al volo -->
@@ -117,7 +118,7 @@
                             <button id="live-sendall" class="send-btn">Send all</button>
                             <button id="live-panic" class="panic-btn">■ Panic</button>
                         </div>
-                        <p class="hint">Tap su un parametro nei tab per regolarlo a tutto schermo. Il Soft-LFO (solo Cutoff, Resonance, Volume) si imposta dentro la scheda del parametro: tempo, ampiezza e forma.</p>
+                        <p class="hint">Tap su un parametro nei tab per regolarlo a tutto schermo. Il Soft-LFO software esiste solo su Resonance e Pan (dentro la loro scheda); per Cutoff/Volume usa LFO Filter-Depth / AMP-Depth nel tab LFO.</p>
                     </div>
                     <div class="scroll-strip" aria-hidden="true" title="Area di scorrimento"></div>
                 </div>
@@ -646,6 +647,35 @@
                     </div>
                 
                 </div>
+
+                <!-- Ritmica Tab: step sequencer batteria su canale 11 (Drum, MODE2) -->
+                <div id="rhythm" class="tab-panel" style="display: none;">
+                    <div class="control-group">
+                        <h3>Pattern ritmico — Canale 11 (Drum)</h3>
+                        <div class="parameter" style="display: flex; gap: 16px; align-items: center; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="rhythm-status-indicator" class="status-indicator" style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: #cccccc;"></span>
+                                <span id="rhythm-status-text" style="font-weight: 500; color: #666;">Inattivo</span>
+                            </div>
+                            <button id="rhythm-toggle-btn" class="arp-toggle-btn" style="padding: 8px 16px; background-color: #cc5858; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Attiva</button>
+                        </div>
+                        <div class="parameter">
+                            <label for="rhythm-bpm">Tempo (40-240 BPM)</label>
+                            <div class="slider-container">
+                                <input type="range" id="rhythm-bpm" min="40" max="240" value="120">
+                                <span class="value" id="rhythm-bpm-value">120</span>
+                            </div>
+                        </div>
+                        <div id="rhythm-grid" class="rhythm-grid" aria-label="Griglia pattern batteria"></div>
+                        <div class="parameter">
+                            <button id="rhythm-execute-btn" class="send-btn">Play</button>
+                            <button id="rhythm-stop-btn" class="send-btn">Stop</button>
+                            <button id="rhythm-rock-btn" class="preset-action-btn">Rock base</button>
+                            <button id="rhythm-clear-btn" class="preset-action-btn">Svuota</button>
+                        </div>
+                        <p class="hint">Tap = colpo, 2° tap = accento, 3° tap = spento. Il pattern resta salvato nel browser.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -683,7 +713,7 @@
                 <input type="range" id="param-modal-slider" min="0" max="127" value="64" aria-label="Valore parametro">
                 <div class="param-modal-minmax"><span id="param-modal-min">0</span><span id="param-modal-max">127</span></div>
                 <div id="param-modal-lfo" class="param-modal-lfo" hidden>
-                    <h4>Soft-LFO software</h4>
+                    <h4 id="param-modal-lfo-title">Soft-LFO software</h4>
                     <button id="param-modal-lfo-toggle" class="softlfo-toggle" type="button">LFO OFF</button>
                     <div class="parameter">
                         <label for="param-modal-rate">Tempo — <span id="param-modal-rate-val">1.00 Hz</span></label>

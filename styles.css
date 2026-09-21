@@ -818,8 +818,8 @@ input[disabled], input[disabled] + label.dest-btn {
 }
 
 /* ===== Righe parametro compatte: tap -> slider in modale fullscreen ===== */
-.tab-panel:not(#live):not(#arp) .parameter.has-slider,
-.tab-panel:not(#live):not(#arp) .parameter.tappable {
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.has-slider,
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -831,19 +831,19 @@ input[disabled], input[disabled] + label.dest-btn {
     cursor: pointer;
     min-height: 52px;
 }
-.tab-panel:not(#live):not(#arp) .parameter.tappable:active { filter: brightness(0.95); }
-.tab-panel:not(#live):not(#arp) .parameter.tappable > label {
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable:active { filter: brightness(0.95); }
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable > label {
     flex: 1;
     margin: 0;
     font-weight: 600;
     font-size: 15px;
 }
-.tab-panel:not(#live):not(#arp) .parameter.tappable .slider-container { flex: 0 0 auto; }
-.tab-panel:not(#live):not(#arp) .parameter.tappable .slider-container input[type="range"],
-.tab-panel:not(#live):not(#arp) .parameter.tappable .slider-container .softlfo-toggle {
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable .slider-container { flex: 0 0 auto; }
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable .slider-container input[type="range"],
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable .slider-container .softlfo-toggle {
     display: none;
 }
-.tab-panel:not(#live):not(#arp) .parameter.tappable .value {
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable .value {
     font-weight: 800;
     font-size: 16px;
     min-width: 48px;
@@ -853,15 +853,59 @@ input[disabled], input[disabled] + label.dest-btn {
     border-radius: 8px;
     padding: 6px 8px;
 }
-.tab-panel:not(#live):not(#arp) .parameter.tappable::after {
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable::after {
     content: '›';
     font-size: 22px;
     color: #999;
     line-height: 1;
 }
 /* indicatore LFO attivo sulla riga */
-.tab-panel:not(#live):not(#arp) .parameter.tappable.lfo-on { border-color: var(--color-primary); }
-.tab-panel:not(#live):not(#arp) .parameter.tappable.lfo-on .value { color: var(--color-primary-600); }
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable.lfo-on { border-color: var(--color-primary); }
+.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter.tappable.lfo-on .value { color: var(--color-primary-600); }
+
+/* ===== Step grid ritmica (canale 11 Drum) ===== */
+.rhythm-grid {
+    display: grid;
+    gap: 4px;
+    margin: 12px 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.rhy-row { display: contents; }
+.rhy-name {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+    z-index: 1;
+}
+.rhy-grid-body {
+    display: grid;
+    grid-template-columns: 64px repeat(16, minmax(34px, 1fr));
+    gap: 4px;
+    min-width: 640px;
+}
+.rhy-cell {
+    min-height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: #f5f6f7;
+    cursor: pointer;
+    padding: 0;
+}
+.rhy-cell.beat { background: #eceff1; }
+.rhy-cell.on { background: var(--color-primary); border-color: var(--color-primary-600); }
+.rhy-cell.accent { background: var(--color-primary-600); box-shadow: inset 0 0 0 2px #fff; }
+.rhy-cell.playing { outline: 3px solid #222; outline-offset: -3px; }
+.rhy-stepnum {
+    font-size: 10px;
+    color: #999;
+    text-align: center;
+}
 
 /* ===== Modale parametro fullscreen ===== */
 .param-dialog {

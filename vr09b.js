@@ -559,6 +559,7 @@ function mapOscNumberToSysExId(oscNumber) {
 function panicAll() {
     try { stopAllSoftLFO(); } catch (_) {}
     try { if (typeof stopArpeggiatorGlobal === 'function') stopArpeggiatorGlobal(); } catch (_) {}
+    try { if (typeof stopRhythmGlobal === 'function') stopRhythmGlobal(); } catch (_) {}
     if (midiOutput && !testMode) {
         // All Notes Off + All Sound Off sui canali keyboard
         [0, 1, 2, 3, 10, 15].forEach(ch => {
@@ -650,11 +651,13 @@ function initPartSelector() {
     if (arpSel) arpSel.addEventListener('change', (e) => localStorage.setItem('vr09b_arp_ch', e.target.value));
 }
 
-// ===== SOFT-LFO: solo su Filtro (cutoff/resonance) e Amp (volume) =====
+// ===== SOFT-LFO: solo dove l'hardware non arriva =====
+// Resonance e Pan non sono modulabili da nessun LFO interno del VR-09B.
+// Cutoff/Volume sono coperti meglio da LFO Filter-Depth / AMP-Depth (tab LFO).
 // rate: 0.05..10 Hz | depth: 0..63 | shape: sine/tri/saw/sqr/s&h/random
 const SOFT_LFO_TARGETS = [
-    'filter-cutoff', 'filter-resonance',
-    'osc-volume'
+    'filter-resonance',
+    'amp-pan'
 ];
 let softLFOState = {}; // paramId -> {on, rate, depth, shape, phase, base, smooth}
 SOFT_LFO_TARGETS.forEach(p => {
@@ -815,13 +818,41 @@ function closeParamModal() {
     modalParamId = null;
 }
 // Sincronizza la sezione Soft-LFO della modale (chiamata ad apertura e a ogni cambio)
+const HW_LFO_HINT = { 'filter-cutoff': 'LFO Filter-Depth', 'osc-volume': 'LFO AMP-Depth' };
 function syncSoftLFOModal() {
     const box = document.getElementById('param-modal-lfo');
     if (!box) return;
-    if (!modalParamId || !SOFT_LFO_TARGETS.includes(modalParamId)) { box.hidden = true; return; }
+    if (!modalParamId) { box.hidden = true; return; }
+    const title = document.getElementById('param-modal-lfo-title');
+    if (!SOFT_LFO_TARGETS.includes(modalParamId)) {
+        // Parametro coperto meglio dall'LFO hardware: mostra solo il rimando
+        if (HW_LFO_HINT[modalParamId]) {
+            box.hidden = false;
+            box.classList.add('hint-only');
+            if (title) title.textContent = 'LFO hardware consigliato';
+            box.querySelectorAll('.parameter, #param-modal-lfo-toggle').forEach(n => n.style.display = 'none');
+            let note = document.getElementById('param-modal-lfo-note');
+            if (!note) {
+                note = document.createElement('p');
+                note.id = 'param-modal-lfo-note';
+                note.className = 'hint';
+                box.appendChild(note);
+            }
+            note.style.display = 'block';
+            note.textContent = `Per modulare questo parametro usa ${HW_LFO_HINT[modalParamId]} nel tab LFO (risoluzione continua, nessun traffico MIDI).`;
+        } else {
+            box.hidden = true;
+        }
+        return;
+    }
     const st = softLFOState[modalParamId];
     if (!st) { box.hidden = true; return; }
     box.hidden = false;
+    box.classList.remove('hint-only');
+    if (title) title.textContent = 'Soft-LFO software';
+    box.querySelectorAll('.parameter, #param-modal-lfo-toggle').forEach(n => n.style.display = '');
+    const oldNote = document.getElementById('param-modal-lfo-note');
+    if (oldNote) oldNote.style.display = 'none';
     const tgl = document.getElementById('param-modal-lfo-toggle');
     tgl.classList.toggle('on', !!st.on);
     tgl.textContent = st.on ? 'LFO ON' : 'LFO OFF';
@@ -885,8 +916,8 @@ function initParamModal() {
         if (!modalParamId) return;
         setSoftLFO(modalParamId, { shape: shape.value });
     });
-    // Righe compatte: tap sulla riga -> modale (solo pannelli con slider, non Live/Arp)
-    document.querySelectorAll('.tab-panel:not(#live):not(#arp) .parameter').forEach(row => {
+    // Righe compatte: tap sulla riga -> modale (solo pannelli synth, non Live/Arp/Ritmica)
+    document.querySelectorAll('.tab-panel:not(#live):not(#arp):not(#rhythm) .parameter').forEach(row => {
         const r = row.querySelector('input[type="range"]');
         if (!r) return;
         row.classList.add('tappable');
@@ -914,9 +945,10 @@ function sendAllParametersForOscillators(paramsByOsc) {
 
         const sysExOscId = mapOscNumberToSysExId(oscNum);
 
-        // Invia tutti i parametri salvati per questo oscillatore (escludi is-active)
+        // Invia tutti i parametri salvati per questo oscillatore (solo voci synth)
         Object.entries(params).forEach(([paramId, val]) => {
             if (paramId === 'is-active') return;
+            if (parameterAddresses[paramId] === undefined) return;
             const res = sendParameterValue(paramId, val, sysExOscId);
             if (res) successCount++; else failCount++;
         });
@@ -1390,6 +1422,171 @@ function init() {
         });
     }
 
+    // ===== STEP SEQUENCER RITMICO (canale 11 = Drum in MODE2) =====
+    const RHYTHM_CHANNEL = 10; // indice 10 = canale MIDI 11
+    const RHYTHM_ROWS = [
+        { n: 'Kick', m: 36 }, { n: 'Snare', m: 38 }, { n: 'Clap', m: 39 },
+        { n: 'CHH', m: 42 }, { n: 'OHH', m: 46 }, { n: 'Tom', m: 45 },
+        { n: 'Ride', m: 51 }, { n: 'Crash', m: 49 }
+    ];
+    const RHYTHM_STEPS = 16;
+    let rhythmActive = false;
+    let rhythmPlaying = false;
+    let rhythmStep = 0;
+    let rhythmTimer = null;
+    let rhythmBpm = parseInt(localStorage.getItem('vr09b_rhythm_bpm') || '120', 10) || 120;
+    let rhythmGrid = null;
+    try { rhythmGrid = JSON.parse(localStorage.getItem('vr09b_rhythm_grid') || 'null'); } catch (_) {}
+    if (!Array.isArray(rhythmGrid) || rhythmGrid.length !== RHYTHM_ROWS.length) {
+        rhythmGrid = RHYTHM_ROWS.map(() => new Array(RHYTHM_STEPS).fill(0));
+    }
+    let rhythmPrevNotes = [];
+    const rhythmGridEl = document.getElementById('rhythm-grid');
+    const rhythmBpmSlider = document.getElementById('rhythm-bpm');
+    const rhythmBpmVal = document.getElementById('rhythm-bpm-value');
+    const rhythmToggleBtn = document.getElementById('rhythm-toggle-btn');
+    const rhythmStatusInd = document.getElementById('rhythm-status-indicator');
+    const rhythmStatusTxt = document.getElementById('rhythm-status-text');
+
+    function saveRhythm() {
+        try {
+            localStorage.setItem('vr09b_rhythm_grid', JSON.stringify(rhythmGrid));
+            localStorage.setItem('vr09b_rhythm_bpm', String(rhythmBpm));
+        } catch (_) {}
+    }
+    function rhythmStepDur() { return 60000 / Math.max(40, Math.min(240, rhythmBpm)) / 4; }
+    function buildRhythmGrid() {
+        if (!rhythmGridEl) return;
+        rhythmGridEl.innerHTML = '';
+        const body = document.createElement('div');
+        body.className = 'rhy-grid-body';
+        body.appendChild(document.createElement('span')); // angolo
+        for (let s = 0; s < RHYTHM_STEPS; s++) {
+            const num = document.createElement('span');
+            num.className = 'rhy-stepnum';
+            num.textContent = (s + 1) % 4 === 1 ? (s + 1) : '';
+            body.appendChild(num);
+        }
+        RHYTHM_ROWS.forEach((row, r) => {
+            const name = document.createElement('span');
+            name.className = 'rhy-name';
+            name.textContent = row.n;
+            body.appendChild(name);
+            for (let s = 0; s < RHYTHM_STEPS; s++) {
+                const cell = document.createElement('button');
+                cell.type = 'button';
+                cell.className = 'rhy-cell' + (s % 4 === 0 ? ' beat' : '');
+                cell.dataset.row = r; cell.dataset.step = s;
+                cell.setAttribute('aria-label', `${row.n} step ${s + 1}`);
+                paintRhythmCell(cell, rhythmGrid[r][s]);
+                cell.addEventListener('click', () => {
+                    rhythmGrid[r][s] = (rhythmGrid[r][s] + 1) % 3; // 0 -> colpo -> accento -> spento
+                    paintRhythmCell(cell, rhythmGrid[r][s]);
+                    saveRhythm();
+                });
+                body.appendChild(cell);
+            }
+        });
+        rhythmGridEl.appendChild(body);
+    }
+    function paintRhythmCell(cell, v) {
+        cell.classList.toggle('on', v === 1);
+        cell.classList.toggle('accent', v === 2);
+    }
+    function markRhythmColumn(step) {
+        if (!rhythmGridEl) return;
+        rhythmGridEl.querySelectorAll('.rhy-cell.playing').forEach(c => c.classList.remove('playing'));
+        rhythmGridEl.querySelectorAll(`.rhy-cell[data-step="${step}"]`).forEach(c => c.classList.add('playing'));
+    }
+    function updateRhythmStatus() {
+        if (!rhythmStatusInd || !rhythmStatusTxt) return;
+        const on = rhythmActive;
+        rhythmStatusInd.style.backgroundColor = on ? '#28a745' : '#cccccc';
+        rhythmStatusTxt.textContent = rhythmPlaying ? `Play ${rhythmBpm} BPM` : (on ? 'Attivo' : 'Inattivo');
+        if (rhythmToggleBtn) {
+            rhythmToggleBtn.textContent = on ? 'Disattiva' : 'Attiva';
+            rhythmToggleBtn.style.backgroundColor = on ? '#28a745' : '#cc5858';
+        }
+    }
+    function rhythmTick() {
+        if (!rhythmPlaying) return;
+        // spegni note dello step precedente (come l'arpeggiatore)
+        rhythmPrevNotes.forEach(m => sendMidiNoteOff(RHYTHM_CHANNEL, m));
+        rhythmPrevNotes = [];
+        for (let r = 0; r < RHYTHM_ROWS.length; r++) {
+            const v = rhythmGrid[r][rhythmStep];
+            if (v > 0) {
+                sendMidiNoteOn(RHYTHM_CHANNEL, RHYTHM_ROWS[r].m, v === 2 ? 127 : 100);
+                rhythmPrevNotes.push(RHYTHM_ROWS[r].m);
+            }
+        }
+        markRhythmColumn(rhythmStep);
+        rhythmStep = (rhythmStep + 1) % RHYTHM_STEPS;
+    }
+    function startRhythm() {
+        if (!rhythmActive) { logMessage("Attiva la ritmica prima di avviare", 'error'); return; }
+        if (!midiOutput && !testMode) { logMessage('Nessun dispositivo MIDI connesso', 'error'); return; }
+        stopRhythm(true);
+        rhythmPlaying = true;
+        rhythmStep = 0;
+        requestWakeLock();
+        rhythmTick();
+        rhythmTimer = robustSetInterval(rhythmTick, Math.max(20, Math.round(rhythmStepDur())));
+        updateRhythmStatus();
+        logMessage(`Ritmica avviata - ${rhythmBpm} BPM ch11`, 'success');
+    }
+    function stopRhythm(silent) {
+        if (rhythmTimer) { robustClearInterval(rhythmTimer); rhythmTimer = null; }
+        rhythmPrevNotes.forEach(m => sendMidiNoteOff(RHYTHM_CHANNEL, m));
+        rhythmPrevNotes = [];
+        rhythmStep = 0;
+        rhythmPlaying = false;
+        if (rhythmGridEl) rhythmGridEl.querySelectorAll('.rhy-cell.playing').forEach(c => c.classList.remove('playing'));
+        updateRhythmStatus();
+        if (!silent) logMessage('Ritmica fermata', 'success');
+    }
+    window.stopRhythmGlobal = stopRhythm;
+    buildRhythmGrid();
+    if (rhythmBpmSlider) {
+        rhythmBpmSlider.value = rhythmBpm;
+        if (rhythmBpmVal) rhythmBpmVal.textContent = rhythmBpm;
+        rhythmBpmSlider.addEventListener('input', () => {
+            rhythmBpm = parseInt(rhythmBpmSlider.value, 10) || 120;
+            if (rhythmBpmVal) rhythmBpmVal.textContent = rhythmBpm;
+            saveRhythm();
+            if (rhythmPlaying) { // applica subito il nuovo tempo
+                robustClearInterval(rhythmTimer);
+                rhythmTimer = robustSetInterval(rhythmTick, Math.max(20, Math.round(rhythmStepDur())));
+                updateRhythmStatus();
+            }
+        });
+    }
+    const rhythmExecBtn = document.getElementById('rhythm-execute-btn');
+    const rhythmStopBtn = document.getElementById('rhythm-stop-btn');
+    const rhythmRockBtn = document.getElementById('rhythm-rock-btn');
+    const rhythmClearBtn = document.getElementById('rhythm-clear-btn');
+    if (rhythmExecBtn) rhythmExecBtn.addEventListener('click', startRhythm);
+    if (rhythmStopBtn) rhythmStopBtn.addEventListener('click', () => stopRhythm());
+    if (rhythmToggleBtn) rhythmToggleBtn.addEventListener('click', () => {
+        rhythmActive = !rhythmActive;
+        updateRhythmStatus();
+        if (!rhythmActive) stopRhythm(true);
+    });
+    if (rhythmRockBtn) rhythmRockBtn.addEventListener('click', () => {
+        rhythmGrid = RHYTHM_ROWS.map(() => new Array(RHYTHM_STEPS).fill(0));
+        [0, 4, 8, 12].forEach(s => rhythmGrid[0][s] = 2);
+        [4, 12].forEach(s => rhythmGrid[1][s] = 2);
+        for (let s = 0; s < 16; s += 2) rhythmGrid[3][s] = 1;
+        rhythmGrid[3][4] = 2; rhythmGrid[3][12] = 2;
+        buildRhythmGrid(); saveRhythm();
+        logMessage('Pattern rock base caricato', 'success');
+    });
+    if (rhythmClearBtn) rhythmClearBtn.addEventListener('click', () => {
+        rhythmGrid = RHYTHM_ROWS.map(() => new Array(RHYTHM_STEPS).fill(0));
+        buildRhythmGrid(); saveRhythm();
+    });
+    updateRhythmStatus();
+
     // ===== PIANO KEYBOARD INTERACTION =====
     document.querySelectorAll('.piano-key').forEach(key => {
         key.addEventListener('click', () => {
@@ -1604,16 +1801,21 @@ function onPresetFileSelected(e) {
 
 // Salva ogni parametro in memoria appena viene modificato
 // (gli slider live con data-mirror sono esclusi: inviano tramite il target reale)
+// NOTA Android: i <select> nativi emettono 'change' e non 'input' -> serve entrambi,
+// altrimenti i menu (onda, mode, shape...) non inviano mai nulla. Il coalescing
+// in coda SysEx rende innocuo l'eventuale doppio evento.
 document.querySelectorAll('input[type="range"], select').forEach(el => {
     if (el.hasAttribute('data-mirror')) return;
     if (el.id === 'part-select' || el.id === 'arp-midi-channel' || el.id === 'arp-mode' || el.id === 'arp-sequence-type' || el.id === 'arp-rate') return;
-    el.addEventListener('input', () => {
+    const onParamInput = () => {
         if (el.id && el.id !== 'midi-output-select') {
             if (!parameterAddresses[el.id]) return; // es. select non-synth
             oscillatorParams[activeOscId][el.id] = el.value;
             sendParameterValue(el.id, el.value); // <--- invia subito il parametro MIDI
         }
-    });
+    };
+    el.addEventListener('input', onParamInput);
+    if (el.tagName === 'SELECT') el.addEventListener('change', onParamInput);
 });
 
 // Event listener per i radio button degli oscillatori
