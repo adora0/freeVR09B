@@ -39,56 +39,35 @@
         </header>
 
         <div class="tab-container">
-            <div class="performance-bar">
+            <div class="performance-bar perf-compact">
                 <div class="part-select-wrap">
                     <label for="part-select">Parte</label>
                     <select id="part-select" aria-label="Parte synth da modificare">
-                        <option value="upper1">Upper1 (libero)</option>
-                        <option value="upper2">Upper2 (arp)</option>
+                        <option value="upper1">Upper1</option>
+                        <option value="upper2">Upper2</option>
                         <option value="lower">Lower</option>
                     </select>
                 </div>
-                <div class="osc-groups">
-                    <div class="osc-group">
-                        <div class="switch-item">
-                            <label class="switch-label">OSC1</label>
-                            <label class="switch">
-                                <input type="checkbox" id="switch1" aria-label="Attiva OSC1">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <input id="radioosc1" class="visually-hidden" type="radio" name="osc-wave-variation" value="1"
-                            aria-label="Invia a OSC1">
-                        <label for="radioosc1" class="dest-btn" aria-live="polite">-> OSC1</label>
-                    </div>
-
-                    <div class="osc-group">
-                        <div class="switch-item">
-                            <label class="switch-label">OSC2</label>
-                            <label class="switch">
-                                <input type="checkbox" id="switch2" aria-label="Attiva OSC2">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <input id="radioosc2" class="visually-hidden" type="radio" name="osc-wave-variation" value="2"
-                            aria-label="Invia a OSC2">
-                        <label for="radioosc2" class="dest-btn">-> OSC2</label>
-                    </div>
-
-                    <div class="osc-group">
-                        <div class="switch-item">
-                            <label class="switch-label">OSC3</label>
-                            <label class="switch">
-                                <input type="checkbox" id="switch3" aria-label="Attiva OSC3">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <input id="radioosc3" class="visually-hidden" type="radio" name="osc-wave-variation" value="3"
-                            aria-label="Invia a OSC3">
-                        <label for="radioosc3" class="dest-btn">-> OSC3</label>
-                    </div>
+                <div class="osc-chips" role="group" aria-label="Oscillatori">
+                    <span class="osc-chip">
+                        <input type="checkbox" id="switch1" class="osc-power" aria-label="Attiva OSC1">
+                        <label for="switch1" class="osc-power-btn" title="On/Off OSC1">⏻</label>
+                        <input id="radioosc1" class="visually-hidden" type="radio" name="osc-wave-variation" value="1" aria-label="Modifica OSC1">
+                        <label for="radioosc1" class="osc-edit-btn" aria-live="polite" title="Modifica parametri OSC1">1</label>
+                    </span>
+                    <span class="osc-chip">
+                        <input type="checkbox" id="switch2" class="osc-power" aria-label="Attiva OSC2">
+                        <label for="switch2" class="osc-power-btn" title="On/Off OSC2">⏻</label>
+                        <input id="radioosc2" class="visually-hidden" type="radio" name="osc-wave-variation" value="2" aria-label="Modifica OSC2">
+                        <label for="radioosc2" class="osc-edit-btn" title="Modifica parametri OSC2">2</label>
+                    </span>
+                    <span class="osc-chip">
+                        <input type="checkbox" id="switch3" class="osc-power" aria-label="Attiva OSC3">
+                        <label for="switch3" class="osc-power-btn" title="On/Off OSC3">⏻</label>
+                        <input id="radioosc3" class="visually-hidden" type="radio" name="osc-wave-variation" value="3" aria-label="Modifica OSC3">
+                        <label for="radioosc3" class="osc-edit-btn" title="Modifica parametri OSC3">3</label>
+                    </span>
                 </div>
-
             </div>
 
             <!-- (Sezione AI rimossa) -->
@@ -138,7 +117,7 @@
                             <button id="live-sendall" class="send-btn">Send all</button>
                             <button id="live-panic" class="panic-btn">■ Panic</button>
                         </div>
-                        <p class="hint">Doppio tap su uno slider = reset. I Soft-LFO si attivano dai tab (pulsante ~LFO, doppio tap/long-press = rate/depth/shape).</p>
+                        <p class="hint">Tap su un parametro nei tab per regolarlo a tutto schermo. Il Soft-LFO (solo Cutoff, Resonance, Volume) si imposta dentro la scheda del parametro: tempo, ampiezza e forma.</p>
                     </div>
                     <div class="scroll-strip" aria-hidden="true" title="Area di scorrimento"></div>
                 </div>
@@ -687,6 +666,50 @@
                     <input id="preset-file-input" type="file" accept="application/json" hidden />
                 </div>
                 <button id="preset-ok-btn" class="preset-ok-btn" style="display:none;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Param modal: slider fullscreen + Soft-LFO -->
+    <div id="param-modal" class="modal" hidden>
+        <div class="modal-backdrop" data-close="true"></div>
+        <div class="modal-dialog param-dialog" role="dialog" aria-modal="true" aria-labelledby="param-modal-title">
+            <div class="modal-header">
+                <h3 id="param-modal-title">Parametro</h3>
+                <button class="modal-close" aria-label="Chiudi" data-close="true">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="param-modal-value" id="param-modal-value">64</div>
+                <input type="range" id="param-modal-slider" min="0" max="127" value="64" aria-label="Valore parametro">
+                <div class="param-modal-minmax"><span id="param-modal-min">0</span><span id="param-modal-max">127</span></div>
+                <div id="param-modal-lfo" class="param-modal-lfo" hidden>
+                    <h4>Soft-LFO software</h4>
+                    <button id="param-modal-lfo-toggle" class="softlfo-toggle" type="button">LFO OFF</button>
+                    <div class="parameter">
+                        <label for="param-modal-rate">Tempo — <span id="param-modal-rate-val">1.00 Hz</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="param-modal-rate" min="0.05" max="10" step="0.05" value="1">
+                        </div>
+                    </div>
+                    <div class="parameter">
+                        <label for="param-modal-depth">Ampiezza — <span id="param-modal-depth-val">20</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="param-modal-depth" min="0" max="63" step="1" value="20">
+                        </div>
+                    </div>
+                    <div class="parameter">
+                        <label for="param-modal-shape">Forma</label>
+                        <select id="param-modal-shape">
+                            <option value="sine">sine</option>
+                            <option value="tri">tri</option>
+                            <option value="saw">saw</option>
+                            <option value="sqr">sqr</option>
+                            <option value="s&h">s&amp;h</option>
+                            <option value="random">random</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="hint">Tap fuori o × per chiudere.</p>
             </div>
         </div>
     </div>

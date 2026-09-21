@@ -650,16 +650,11 @@ function initPartSelector() {
     if (arpSel) arpSel.addEventListener('change', (e) => localStorage.setItem('vr09b_arp_ch', e.target.value));
 }
 
-// ===== SOFT-LFO: un LFO software per OGNI parametro =====
-// Modulazione bipolare attorno al valore base dello slider.
+// ===== SOFT-LFO: solo su Filtro (cutoff/resonance) e Amp (volume) =====
 // rate: 0.05..10 Hz | depth: 0..63 | shape: sine/tri/saw/sqr/s&h/random
 const SOFT_LFO_TARGETS = [
-    'osc-pitch', 'osc-detune', 'osc-pw', 'osc-pw-mod-depth',
-    'osc-pitch-env-depth', 'super-saw-detune',
-    'filter-cutoff', 'filter-resonance', 'filter-env-depth',
-    'lfo-rate', 'lfo-pitch-depth', 'lfo-filter-depth', 'lfo-amp-depth',
-    'mod-lfo-rate', 'mod-lfo-rate-ctrl',
-    'osc-volume', 'amp-vel-sens', 'amp-pan'
+    'filter-cutoff', 'filter-resonance',
+    'osc-volume'
 ];
 let softLFOState = {}; // paramId -> {on, rate, depth, shape, phase, base, smooth}
 SOFT_LFO_TARGETS.forEach(p => {
@@ -731,13 +726,20 @@ const softLFOEngine = {
             // aggiorna slider senza triggerare loop: invia SysEx diretto sul partial correntemente in edit
             if (el && document.activeElement !== el) {
                 el.value = target;
-                const valEl = document.getElementById(paramId + '-value');
+                const valEl = document.getElementById(`${paramId}-value`);
                 if (valEl) {
                     if (bidirectionalParams.includes(paramId)) {
                         const c = (parseInt(el.min) + parseInt(el.max)) / 2;
                         valEl.textContent = Math.round(target - c);
                     } else valEl.textContent = target;
                 }
+            }
+            // se la modale è aperta su questo parametro, aggiorna lo slider grande
+            if (modalParamId === paramId) {
+                const mSlider = document.getElementById('param-modal-slider');
+                const mVal = document.getElementById('param-modal-value');
+                if (mSlider && document.activeElement !== mSlider) mSlider.value = target;
+                if (mVal) mVal.textContent = displayVal(paramId, target);
             }
             const oscSel = document.querySelector('input[name="osc-wave-variation"]:checked');
             const oscNum = oscSel ? oscSel.value : (activeOscId || '1');
@@ -754,48 +756,145 @@ function setSoftLFO(paramId, patch) {
     if (patch.on) { softLFOEngine.start(); requestWakeLock(); }
 }
 function stopAllSoftLFO() {
-    SOFT_LFO_TARGETS.forEach(p => { softLFOState[p].on = false; });
+    SOFT_LFO_TARGETS.forEach(p => { if (softLFOState[p]) softLFOState[p].on = false; });
     softLFOEngine.stop();
-    document.querySelectorAll('.softlfo-toggle.on').forEach(b => { b.classList.remove('on'); b.textContent = 'LFO off'; });
+    document.querySelectorAll('.parameter.tappable.lfo-on').forEach(r => r.classList.remove('lfo-on'));
+    syncSoftLFOModal();
 }
+// Marca la riga del parametro con LFO attivo
+function markLFORow(paramId) {
+    const target = document.getElementById(paramId);
+    const row = target ? target.closest('.parameter') : null;
+    if (!row) return;
+    row.classList.toggle('lfo-on', !!(softLFOState[paramId] && softLFOState[paramId].on));
+}
+// I controlli Soft-LFO vivono nella modale parametro (niente più toggle inline)
 function initSoftLFOUI() {
-    // Inietta un mini-toggle "~LFO" accanto a ogni slider target (se non esiste)
-    SOFT_LFO_TARGETS.forEach(paramId => {
-        const slider = document.getElementById(paramId);
-        if (!slider) return;
-        const container = slider.closest('.slider-container');
-        if (!container || container.querySelector('.softlfo-toggle')) return;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'softlfo-toggle' + (softLFOState[paramId].on ? ' on' : '');
-        btn.textContent = softLFOState[paramId].on ? 'LFO on' : '~LFO';
-        btn.title = 'Soft-LFO software: tieni premuto per impostazioni';
-        btn.setAttribute('aria-label', 'Attiva Soft-LFO per ' + paramId);
-        btn.addEventListener('click', () => {
-            const st = softLFOState[paramId];
-            setSoftLFO(paramId, { on: !st.on });
-            btn.classList.toggle('on', softLFOState[paramId].on);
-            btn.textContent = softLFOState[paramId].on ? 'LFO on' : '~LFO';
-        });
-        // long-press / doppio click -> pannello impostazioni
-        btn.addEventListener('dblclick', () => openSoftLFOPanel(paramId));
-        let pressTimer = null;
-        btn.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openSoftLFOPanel(paramId), 600); }, { passive: true });
-        btn.addEventListener('touchend', () => { if (pressTimer) clearTimeout(pressTimer); });
-        container.appendChild(btn);
+    // Migrazione: spegni eventuali LFO salvati su parametri non più supportati
+    Object.keys(softLFOState).forEach(k => {
+        if (k.startsWith('_')) return;
+        if (!SOFT_LFO_TARGETS.includes(k) && softLFOState[k]) softLFOState[k].on = false;
     });
-    if (softLFOState && SOFT_LFO_TARGETS.some(p => softLFOState[p].on)) softLFOEngine.start();
+    if (softLFOState && SOFT_LFO_TARGETS.some(p => softLFOState[p] && softLFOState[p].on)) softLFOEngine.start();
+    SOFT_LFO_TARGETS.forEach(markLFORow);
 }
-function openSoftLFOPanel(paramId) {
-    const st = softLFOState[paramId];
-    const rate = prompt(`Soft-LFO ${paramId} — rate Hz (0.05-10):`, String(st.rate));
-    if (rate !== null) st.rate = Math.max(0.05, Math.min(10, parseFloat(rate) || 1));
-    const depth = prompt(`Soft-LFO ${paramId} — depth (0-63):`, String(st.depth));
-    if (depth !== null) st.depth = Math.max(0, Math.min(63, parseInt(depth) || 0));
-    const shape = prompt(`Soft-LFO ${paramId} — shape (sine/tri/saw/sqr/s&h/random):`, st.shape);
-    if (shape !== null && ['sine', 'tri', 'saw', 'sqr', 's&h', 'random'].includes(shape)) st.shape = shape;
-    setSoftLFO(paramId, {});
-    logMessage(`Soft-LFO ${paramId}: ${st.shape} ${st.rate}Hz depth ${st.depth}`, 'info');
+
+// ===== MODALE PARAMETRO: slider fullscreen + controlli Soft-LFO =====
+let modalParamId = null;
+function displayVal(paramId, raw) {
+    const el = document.getElementById(paramId);
+    if (el && bidirectionalParams.includes(paramId)) {
+        const c = (parseInt(el.min) + parseInt(el.max)) / 2;
+        return String(Math.round(raw - c));
+    }
+    return String(raw);
+}
+function openParamModal(paramId) {
+    const target = document.getElementById(paramId);
+    if (!target || target.type !== 'range') return;
+    modalParamId = paramId;
+    const modal = document.getElementById('param-modal');
+    const title = document.getElementById('param-modal-title');
+    const slider = document.getElementById('param-modal-slider');
+    const valEl = document.getElementById('param-modal-value');
+    const row = target.closest('.parameter');
+    const label = row ? row.querySelector('label') : null;
+    title.textContent = label ? label.textContent : paramId;
+    slider.min = target.min; slider.max = target.max;
+    slider.value = target.value;
+    valEl.textContent = displayVal(paramId, parseInt(target.value));
+    document.getElementById('param-modal-min').textContent = target.min;
+    document.getElementById('param-modal-max').textContent = target.max;
+    syncSoftLFOModal();
+    markLFORow(paramId);
+    modal.hidden = false;
+}
+function closeParamModal() {
+    const modal = document.getElementById('param-modal');
+    if (modal) modal.hidden = true;
+    modalParamId = null;
+}
+// Sincronizza la sezione Soft-LFO della modale (chiamata ad apertura e a ogni cambio)
+function syncSoftLFOModal() {
+    const box = document.getElementById('param-modal-lfo');
+    if (!box) return;
+    if (!modalParamId || !SOFT_LFO_TARGETS.includes(modalParamId)) { box.hidden = true; return; }
+    const st = softLFOState[modalParamId];
+    if (!st) { box.hidden = true; return; }
+    box.hidden = false;
+    const tgl = document.getElementById('param-modal-lfo-toggle');
+    tgl.classList.toggle('on', !!st.on);
+    tgl.textContent = st.on ? 'LFO ON' : 'LFO OFF';
+    const rate = document.getElementById('param-modal-rate');
+    const depth = document.getElementById('param-modal-depth');
+    const shape = document.getElementById('param-modal-shape');
+    rate.value = st.rate; depth.value = st.depth; shape.value = st.shape;
+    document.getElementById('param-modal-rate-val').textContent = Number(st.rate).toFixed(2) + ' Hz';
+    document.getElementById('param-modal-depth-val').textContent = st.depth;
+}
+function initParamModal() {
+    const modal = document.getElementById('param-modal');
+    const slider = document.getElementById('param-modal-slider');
+    const valEl = document.getElementById('param-modal-value');
+    if (!modal || !slider) return;
+    // Slider grande -> propaga al controllo reale (invia MIDI + salva)
+    slider.addEventListener('input', () => {
+        if (!modalParamId) return;
+        const target = document.getElementById(modalParamId);
+        if (!target) return;
+        target.value = slider.value;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        valEl.textContent = displayVal(modalParamId, parseInt(slider.value));
+        // se il Soft-LFO è attivo, il valore manuale diventa il nuovo centro
+        if (softLFOState[modalParamId] && softLFOState[modalParamId].on) {
+            softLFOState[modalParamId].base = parseInt(slider.value);
+        }
+    });
+    // Chiusura: tap fuori, X, ESC
+    modal.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t && t.dataset && t.dataset.close !== undefined) closeParamModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) closeParamModal();
+    });
+    // Controlli Soft-LFO: tempo (rate), ampiezza (depth), forma
+    const tgl = document.getElementById('param-modal-lfo-toggle');
+    const rate = document.getElementById('param-modal-rate');
+    const depth = document.getElementById('param-modal-depth');
+    const shape = document.getElementById('param-modal-shape');
+    tgl.addEventListener('click', () => {
+        if (!modalParamId) return;
+        const st = softLFOState[modalParamId];
+        setSoftLFO(modalParamId, { on: !st.on });
+        markLFORow(modalParamId);
+        syncSoftLFOModal();
+        logMessage(`Soft-LFO ${modalParamId}: ${st.on ? 'ON' : 'OFF'}`, 'info');
+    });
+    rate.addEventListener('input', () => {
+        if (!modalParamId) return;
+        setSoftLFO(modalParamId, { rate: Math.max(0.05, Math.min(10, parseFloat(rate.value) || 1)) });
+        document.getElementById('param-modal-rate-val').textContent = Number(softLFOState[modalParamId].rate).toFixed(2) + ' Hz';
+    });
+    depth.addEventListener('input', () => {
+        if (!modalParamId) return;
+        setSoftLFO(modalParamId, { depth: Math.max(0, Math.min(63, parseInt(depth.value) || 0)) });
+        document.getElementById('param-modal-depth-val').textContent = softLFOState[modalParamId].depth;
+    });
+    shape.addEventListener('change', () => {
+        if (!modalParamId) return;
+        setSoftLFO(modalParamId, { shape: shape.value });
+    });
+    // Righe compatte: tap sulla riga -> modale (solo pannelli con slider, non Live/Arp)
+    document.querySelectorAll('.tab-panel:not(#live):not(#arp) .parameter').forEach(row => {
+        const r = row.querySelector('input[type="range"]');
+        if (!r) return;
+        row.classList.add('tappable');
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('select')) return;
+            openParamModal(r.id);
+        });
+    });
 }
 
 // Invia tutti i parametri per gli oscillatori attivi usando i dati forniti
@@ -1052,6 +1151,7 @@ function init() {
     initRobustTimers();
     initPartSelector();
     initSoftLFOUI();
+    initParamModal();
 
     // ===== ARPEGGIATORE MIDI (ottimizzato + timer robusto) =====
     // Cache DOM elementi usati dall'arpeggiatore
